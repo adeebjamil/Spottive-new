@@ -45,12 +45,43 @@ export async function PUT(
     const body = await request.json();
     await dbConnect();
     
-    const product = await Product.findByIdAndUpdate(
+    // Update product fields including brandPages if provided
+    const updatedProduct = await Product.findByIdAndUpdate(
       params.id,
-      body,
+      { 
+        // Existing fields...
+        ...(body.brandPages !== undefined ? { brandPages: body.brandPages } : {})
+      },
       { new: true, runValidators: true }
     );
     
+    if (!updatedProduct) {
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
+    }
+    
+    return NextResponse.json(updatedProduct);
+  } catch (error) {
+    console.error('Error updating product:', error);
+    return NextResponse.json(
+      { error: 'Failed to update product' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: Params
+) {
+  try {
+    const body = await request.json();
+    await dbConnect();
+    
+    // Find the product
+    const product = await Product.findById(params.id);
     if (!product) {
       return NextResponse.json(
         { error: 'Product not found' },
@@ -58,12 +89,19 @@ export async function PUT(
       );
     }
     
+    // Update brand pages field if provided
+    if (body.brandPages !== undefined) {
+      product.brandPages = body.brandPages;
+    }
+    
+    await product.save();
+    
     return NextResponse.json(product);
   } catch (error) {
-    console.error('Error updating product:', error);
+    console.error('Error updating product brand pages:', error);
     return NextResponse.json(
       { error: 'Failed to update product' },
-      { status: 400 }
+      { status: 500 }
     );
   }
 }

@@ -24,6 +24,12 @@ interface SubCategory {
   slug: string;
 }
 
+interface BrandPage {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 type CategoryFormData = {
   name: string;
   description: string;
@@ -49,6 +55,14 @@ export default function CategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
+  // Brand Pages state
+  const [brandPages, setBrandPages] = useState<BrandPage[]>([]);
+  const [brandPageForm, setBrandPageForm] = useState({ name: '' });
+  const [assignBrandForm, setAssignBrandForm] = useState({
+    productId: '',
+    brandPageIds: [] as string[]
+  });
+
   // Form states
   const [categoryForm, setCategoryForm] = useState<CategoryFormData>({ name: '', description: '' });
   const [subcategoryForm, setSubcategoryForm] = useState<SubCategoryFormData>({ name: '', parentId: '' });
@@ -59,13 +73,14 @@ export default function CategoriesPage() {
   });
   
   // UI states
-  const [activeTab, setActiveTab] = useState<'categories' | 'subcategories' | 'assign'>('categories');
+  const [activeTab, setActiveTab] = useState<'categories' | 'subcategories' | 'assign' | 'brandpages'>('categories');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   
-  // Fetch categories on mount
+  // Fetch categories and brand pages on mount
   useEffect(() => {
     fetchCategories();
+    fetchBrandPages();
   }, []);
   
   const fetchCategories = async () => {
@@ -85,6 +100,22 @@ export default function CategoriesPage() {
       toast.error('Failed to load categories');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBrandPages = async () => {
+    try {
+      const response = await fetch('/api/brandpages');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch brand pages');
+      }
+      
+      const data = await response.json();
+      setBrandPages(data);
+    } catch (err) {
+      console.error('Error fetching brand pages:', err);
+      toast.error('Failed to load brand pages');
     }
   };
   
@@ -109,6 +140,29 @@ export default function CategoriesPage() {
     if (name === 'categoryId') {
       setAssignProductForm(prev => ({ ...prev, subcategoryId: '' }));
     }
+  };
+
+  // Handle assign brand pages form change
+  const handleAssignBrandFormChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (e.target.name === 'productId') {
+      setAssignBrandForm({
+        productId: e.target.value,
+        brandPageIds: []
+      });
+    }
+  };
+
+  // Handle checkbox for multiple brand page selection
+  const handleBrandCheckboxChange = (brandId: string) => {
+    setAssignBrandForm(prev => {
+      const isSelected = prev.brandPageIds.includes(brandId);
+      return {
+        ...prev,
+        brandPageIds: isSelected
+          ? prev.brandPageIds.filter(id => id !== brandId)
+          : [...prev.brandPageIds, brandId]
+      };
+    });
   };
   
   // Create category
@@ -179,7 +233,39 @@ export default function CategoriesPage() {
       toast.error(err instanceof Error ? err.message : 'Failed to create subcategory');
     }
   };
-  
+
+  // Create a brand page
+  const handleCreateBrandPage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!brandPageForm.name.trim()) {
+      toast.error('Brand page name is required');
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/brandpages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(brandPageForm)
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create brand page');
+      }
+      
+      toast.success('Brand page created successfully');
+      setBrandPageForm({ name: '' });
+      fetchBrandPages();
+    } catch (err) {
+      console.error('Error creating brand page:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to create brand page');
+    }
+  };
+
   // Assign product to category/subcategory
   const handleAssignProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,7 +304,40 @@ export default function CategoriesPage() {
       toast.error(err instanceof Error ? err.message : 'Failed to assign product');
     }
   };
-  
+
+  // Assign product to brand pages
+  const handleAssignBrandPages = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!assignBrandForm.productId) {
+      toast.error('Please select a product');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/products/${assignBrandForm.productId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          brandPages: assignBrandForm.brandPageIds
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to assign brand pages');
+      }
+      
+      toast.success('Brand pages assigned successfully');
+      setAssignBrandForm({ productId: '', brandPageIds: [] });
+    } catch (err) {
+      console.error('Error assigning brand pages:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to assign brand pages');
+    }
+  };
+
   // Delete category
   const handleDeleteCategory = async (categoryId: string) => {
     if (!confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
@@ -266,12 +385,49 @@ export default function CategoriesPage() {
       toast.error(err instanceof Error ? err.message : 'Failed to delete subcategory');
     }
   };
-  
+
+  // Delete brand page
+  const handleDeleteBrandPage = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this brand page? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/brandpages/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete brand page');
+      }
+      
+      toast.success('Brand page deleted successfully');
+      fetchBrandPages();
+    } catch (err) {
+      console.error('Error deleting brand page:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to delete brand page');
+    }
+  };
+
   // Get available subcategories for selected category
   const getSubcategoriesForCategory = () => {
     const selectedCategory = categories.find(cat => cat._id === assignProductForm.categoryId);
     return selectedCategory?.subcategories || [];
   };
+
+  // Load product's current brand pages when product is selected
+  useEffect(() => {
+    if (assignBrandForm.productId) {
+      const product = products.find(p => p._id === assignBrandForm.productId || p.id === assignBrandForm.productId);
+      if (product && product.brandPages) {
+        setAssignBrandForm(prev => ({
+          ...prev,
+          brandPageIds: Array.isArray(product.brandPages) ? product.brandPages : []
+        }));
+      }
+    }
+  }, [assignBrandForm.productId, products]);
   
   return (
     <div className="bg-gray-50 min-h-full p-6 rounded-lg shadow-sm">
@@ -303,6 +459,16 @@ export default function CategoriesPage() {
             }`}
           >
             Subcategories
+          </button>
+          <button
+            onClick={() => setActiveTab('brandpages')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'brandpages'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Brand Pages
           </button>
           <button
             onClick={() => setActiveTab('assign')}
@@ -526,6 +692,76 @@ export default function CategoriesPage() {
         </div>
       )}
       
+      {/* Brand Pages Tab */}
+      {activeTab === 'brandpages' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Brand Page Form */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-lg font-semibold mb-4">Create New Brand Page</h2>
+            <form onSubmit={handleCreateBrandPage}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Brand Page Name*
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={brandPageForm.name}
+                  onChange={(e) => setBrandPageForm({ name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., Dahua, Uniview, UNV, etc."
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+              >
+                Create Brand Page
+              </button>
+            </form>
+          </div>
+          
+          {/* Brand Pages List */}
+          <div className="md:col-span-2 bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-lg font-semibold mb-4">Brand Pages</h2>
+            
+            {loading ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              </div>
+            ) : brandPages.length > 0 ? (
+              <div className="divide-y divide-gray-200">
+                {brandPages.map(brandPage => (
+                  <div key={brandPage.id} className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900">{brandPage.name}</h3>
+                        <div className="flex items-center mt-2 text-xs text-gray-500">
+                          <span>URL: /products/{brandPage.slug}</span>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleDeleteBrandPage(brandPage.id)}
+                          className="inline-flex items-center px-2.5 py-1.5 border border-red-300 text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center">
+                <p className="text-gray-500">No brand pages found. Create your first brand page.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Assign Products Tab */}
       {activeTab === 'assign' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -596,9 +832,68 @@ export default function CategoriesPage() {
             </form>
           </div>
           
-          {/* Products List */}
+          {/* Assign Product to Brand Pages */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-lg font-semibold mb-4">Assign Product to Brand Pages</h2>
+            <form onSubmit={handleAssignBrandPages}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Select Product*
+                </label>
+                <select
+                  name="productId"
+                  value={assignBrandForm.productId}
+                  onChange={handleAssignBrandFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Select a product</option>
+                  {products.map(product => (
+                    <option key={product._id || product.id} value={product._id || product.id}>
+                      {product.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Brand Pages
+                </label>
+                <div className="space-y-2 max-h-60 overflow-y-auto border border-gray-300 rounded-md p-3">
+                  {brandPages.map(brandPage => (
+                    <div key={brandPage.id} className="flex items-center">
+                      <input
+                        id={`brand-${brandPage.id}`}
+                        type="checkbox"
+                        checked={assignBrandForm.brandPageIds.includes(brandPage.id)}
+                        onChange={() => handleBrandCheckboxChange(brandPage.id)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor={`brand-${brandPage.id}`} className="ml-2 text-sm text-gray-700">
+                        {brandPage.name}
+                      </label>
+                    </div>
+                  ))}
+                  {brandPages.length === 0 && (
+                    <p className="text-sm text-gray-500 italic">No brand pages available. Create some first.</p>
+                  )}
+                </div>
+              </div>
+              
+              <button
+                type="submit"
+                className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+                disabled={!assignBrandForm.productId}
+              >
+                Assign Brand Pages
+              </button>
+            </form>
+          </div>
+          
+          {/* Products with Brand Pages */}
           <div className="md:col-span-2 bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-lg font-semibold mb-4">Products & Categories</h2>
+            <h2 className="text-lg font-semibold mb-4">Products & Brand Pages</h2>
             
             {productsLoading ? (
               <div className="flex justify-center items-center py-8">
@@ -613,7 +908,7 @@ export default function CategoriesPage() {
                         Product
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Website Category
+                        Brand Pages
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
@@ -621,50 +916,68 @@ export default function CategoriesPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {products.map(product => (
-                      <tr key={product._id || product.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10 relative">
-                              {product.imageUrl ? (
-                                <Image
-                                  src={product.imageUrl}
-                                  alt={product.name}
-                                  className="h-10 w-10 rounded-md object-cover"
-                                  width={40}
-                                  height={40}
-                                />
+                    {products.map(product => {
+                      // Find brand page names for this product
+                      const assignedBrandPages = product.brandPages || [];
+                      const brandPageNames = brandPages
+                        .filter(bp => assignedBrandPages.includes(bp.id))
+                        .map(bp => bp.name);
+                      
+                      return (
+                        <tr key={product._id || product.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10 relative">
+                                {product.imageUrl ? (
+                                  <Image
+                                    src={product.imageUrl}
+                                    alt={product.name}
+                                    className="h-10 w-10 rounded-md object-cover"
+                                    width={40}
+                                    height={40}
+                                  />
+                                ) : (
+                                  <div className="h-10 w-10 rounded-md bg-gray-200 flex items-center justify-center text-gray-400">
+                                    <span className="text-xs">No img</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                                <div className="text-sm text-gray-500">{product.category}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-wrap gap-1">
+                              {brandPageNames.length > 0 ? (
+                                brandPageNames.map(name => (
+                                  <span 
+                                    key={name} 
+                                    className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800"
+                                  >
+                                    {name}
+                                  </span>
+                                ))
                               ) : (
-                                <div className="h-10 w-10 rounded-md bg-gray-200 flex items-center justify-center text-gray-400">
-                                  <span className="text-xs">No img</span>
-                                </div>
+                                <span className="text-sm text-gray-500 italic">Not assigned</span>
                               )}
                             </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                              <div className="text-sm text-gray-500">{product.category}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                            {product.websiteCategory || 'Not assigned'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <button
-                            onClick={() => setAssignProductForm({
-                              productId: product._id || product.id || '',
-                              categoryId: '',
-                              subcategoryId: ''
-                            })}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            Reassign
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <button
+                              onClick={() => setAssignBrandForm({
+                                productId: product._id || product.id || '',
+                                brandPageIds: product.brandPages || []
+                              })}
+                              className="text-blue-600 hover:text-blue-900"
+                            >
+                              Edit
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

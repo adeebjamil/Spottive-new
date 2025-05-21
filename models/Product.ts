@@ -9,11 +9,13 @@ export interface IProduct {
   name: string;
   category: string;
   websiteCategory: string;
-  subcategoryId?: string;  // NEW: Reference to subcategory
+  subcategoryId?: string;  // Reference to subcategory
+  subcategoryName?: string; // Name of subcategory (for easier display)
   status: 'Active' | 'Featured' | 'New' | 'Discontinued';
   description?: string;
   imageUrl?: string;
   cloudinaryId?: string;
+  brandPages?: string[];  // NEW: Array of brand pages this product should appear on
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -27,7 +29,8 @@ const productSchema = new Schema<IProduct, ProductModel>({
   name: { type: String, required: true },
   category: { type: String, required: true },
   websiteCategory: { type: String, required: true },
-  subcategoryId: { type: String }, // NEW: Reference to subcategory
+  subcategoryId: { type: String },
+  subcategoryName: { type: String },
   status: { 
     type: String, 
     enum: ['Active', 'Featured', 'New', 'Discontinued'], 
@@ -36,6 +39,7 @@ const productSchema = new Schema<IProduct, ProductModel>({
   description: { type: String },
   imageUrl: { type: String },
   cloudinaryId: { type: String },
+  brandPages: [{ type: String }], // NEW: Array of brand pages
 }, { timestamps: true });
 
 // Add toJSON transform to handle _id and id
