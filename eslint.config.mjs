@@ -14,3 +14,10 @@ const eslintConfig = [
 ];
 
 export default eslintConfig;
+
+const packageJson = {
+  devDependencies: {
+    "@eslint/eslintrc": "^2.1.3",
+    // other dependencies
+  },
+};

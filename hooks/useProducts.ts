@@ -1,21 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSocket } from './useSocket';
-
-export interface IProduct {
-  _id?: string;
-  id?: string;
-  name: string;
-  category: string;
-  websiteCategory: string;
-  status: string;
-  description?: string;
-  imageUrl?: string;
-  cloudinaryId?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+import { IProduct } from '@/models/Product';
 
 export function useProducts() {
   const [products, setProducts] = useState<IProduct[]>([]);
@@ -51,37 +38,32 @@ export function useProducts() {
   useEffect(() => {
     if (!socket) return;
     
-    // Listen to product events
     const handleProductsUpdate = (updatedProducts: IProduct[]) => {
       setProducts(updatedProducts);
     };
     
     const handleProductCreated = (newProduct: IProduct) => {
-      setProducts(currentProducts => [newProduct, ...currentProducts]);
+      setProducts(prev => [newProduct, ...prev]);
     };
     
     const handleProductUpdated = (updatedProduct: IProduct) => {
-      setProducts(currentProducts => 
-        currentProducts.map(product => 
-          product._id === updatedProduct._id ? updatedProduct : product
-        )
+      setProducts(prev => 
+        prev.map(p => (p._id === updatedProduct._id || p.id === updatedProduct.id) ? updatedProduct : p)
       );
     };
     
     const handleProductDeleted = (deletedId: string) => {
-      setProducts(currentProducts => 
-        currentProducts.filter(product => product._id !== deletedId)
+      setProducts(prev => 
+        prev.filter(p => p._id !== deletedId && p.id !== deletedId)
       );
     };
     
-    // Register listeners
     socket.on('products:updated', handleProductsUpdate);
     socket.on('product:created', handleProductCreated);
     socket.on('product:updated', handleProductUpdated);
     socket.on('product:deleted', handleProductDeleted);
     
     return () => {
-      // Clean up listeners
       socket.off('products:updated', handleProductsUpdate);
       socket.off('product:created', handleProductCreated);
       socket.off('product:updated', handleProductUpdated);
