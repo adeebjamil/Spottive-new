@@ -9,6 +9,7 @@ export interface IProduct {
   name: string;
   category: string;
   websiteCategory: string;
+  subcategoryId?: string;  // NEW: Reference to subcategory
   status: 'Active' | 'Featured' | 'New' | 'Discontinued';
   description?: string;
   imageUrl?: string;
@@ -26,6 +27,7 @@ const productSchema = new Schema<IProduct, ProductModel>({
   name: { type: String, required: true },
   category: { type: String, required: true },
   websiteCategory: { type: String, required: true },
+  subcategoryId: { type: String }, // NEW: Reference to subcategory
   status: { 
     type: String, 
     enum: ['Active', 'Featured', 'New', 'Discontinued'], 
