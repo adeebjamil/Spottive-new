@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongoose';
+import dbConnect from '../../../../lib/mongoose';
 import mongoose from 'mongoose';
 
 // Reference the BrandPage model
