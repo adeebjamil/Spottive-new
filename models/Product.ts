@@ -4,22 +4,17 @@ import clientPromise from '@/lib/mongodb';
 import { getIo } from '@/lib/mongodb';
 
 export interface IProduct {
-  [x: string]: string;
-  [x: string]: string | undefined;
+  [x: string]: string | undefined | any; // Single index signature that handles all property types
   id?: string;
   _id?: string;
   name: string;
   category: string;
   websiteCategory: string;
-  subcategoryId?: string;  // Reference to subcategory
-  subcategoryName?: string; // Name of subcategory (for easier display)
-  status: 'Active' | 'Featured' | 'New' | 'Discontinued';
-  description?: string;
+  status: string;
+  description: string;
   imageUrl?: string;
   cloudinaryId?: string;
-  brandPages?: string[];  // NEW: Array of brand pages this product should appear on
-  createdAt?: Date;
-  updatedAt?: Date;
+  // any other properties your product might have
 }
 
 // Define static methods for the Product model
