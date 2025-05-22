@@ -226,17 +226,32 @@ export default function UNVProductsPage() {
             <div className="bg-white rounded-lg shadow-md p-5 mb-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Website Categories</h3>
               <div className="space-y-2">
+                {/* Add "All" option first */}
+                <div key="all-subcategory" className="flex items-center">
+                  <input
+                    id="website-category-All"
+                    type="radio"
+                    name="website-category"
+                    checked={activeWebsiteCategory === 'All'}
+                    onChange={() => setActiveWebsiteCategory('All')}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="website-category-All" className="ml-2 text-sm text-gray-700">
+                    All
+                  </label>
+                </div>
+                
                 {subcategories.map((subcategory) => (
-                  <div key={subcategory.name} className="flex items-center">
+                  <div key={subcategory._id} className="flex items-center">
                     <input
-                      id={`website-category-${subcategory.name}`}
+                      id={`website-category-${subcategory._id}`}
                       type="radio"
                       name="website-category"
                       checked={activeWebsiteCategory === subcategory.name}
                       onChange={() => setActiveWebsiteCategory(subcategory.name)}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                     />
-                    <label htmlFor={`website-category-${subcategory.name}`} className="ml-2 text-sm text-gray-700">
+                    <label htmlFor={`website-category-${subcategory._id}`} className="ml-2 text-sm text-gray-700">
                       {subcategory.name}
                     </label>
                   </div>

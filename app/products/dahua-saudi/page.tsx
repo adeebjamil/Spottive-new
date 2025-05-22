@@ -16,6 +16,8 @@ interface IProduct {
   slug?: string;
   images?: string[];
   price?: number;
+  subcategoryId?: string;
+  websiteCategoryId?: string;
 }
 
 export default function DahuaSaudiProductsPage() {
@@ -30,7 +32,7 @@ export default function DahuaSaudiProductsPage() {
   const sortDropdownRef = useRef<HTMLDivElement>(null);
   const [pageProducts, setPageProducts] = useState<IProduct[]>([]);
   const [categories, setCategories] = useState<string[]>(['All']);
-  const [subcategories, setSubcategories] = useState<string[]>([]);
+  const [subcategories, setSubcategories] = useState<any[]>([]); // Change from string[] to any[]
   const [pageLoading, setLoading] = useState(false);
   const [pageError, setError] = useState<string | null>(null);
 
@@ -72,7 +74,10 @@ export default function DahuaSaudiProductsPage() {
         const pageSubcategories = await fetch('/api/pages/dahua-saudi/subcategories');
         if (pageSubcategories.ok) {
           const subcategoriesData = await pageSubcategories.json();
-          setSubcategories(subcategoriesData);
+          console.log('Loaded subcategories:', subcategoriesData); // Debug log
+          setSubcategories(subcategoriesData); // Now storing full objects
+        } else {
+          console.error('Failed to fetch subcategories');
         }
 
         setError(null);
@@ -99,7 +104,18 @@ export default function DahuaSaudiProductsPage() {
   let filteredProducts = brandProducts.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
-    const matchesWebsiteCategory = activeWebsiteCategory === 'All' || product.websiteCategory === activeWebsiteCategory;
+
+    // Enhanced subcategory matching logic
+    const matchesWebsiteCategory =
+      activeWebsiteCategory === 'All' ||
+      product.websiteCategory === activeWebsiteCategory ||
+      // Also match if subcategory ID matches
+      subcategories.some(
+        (sub) =>
+          activeWebsiteCategory === sub.name &&
+          (product.subcategoryId === sub._id || product.websiteCategoryId === sub._id)
+      );
+
     return matchesSearch && matchesCategory && matchesWebsiteCategory;
   });
 
@@ -242,21 +258,42 @@ export default function DahuaSaudiProductsPage() {
             <div className="bg-white rounded-lg shadow-md p-5 mb-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Website Categories</h3>
               <div className="space-y-2">
+                {/* Add "All" option first */}
+                <div key="all-subcategory" className="flex items-center">
+                  <input
+                    id="website-category-All"
+                    type="radio"
+                    name="website-category"
+                    checked={activeWebsiteCategory === 'All'}
+                    onChange={() => setActiveWebsiteCategory('All')}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="website-category-All" className="ml-2 text-sm text-gray-700">
+                    All
+                  </label>
+                </div>
+                
+                {/* Map through actual subcategories from API */}
                 {subcategories.map((subcategory) => (
-                  <div key={subcategory} className="flex items-center">
+                  <div key={subcategory._id} className="flex items-center">
                     <input
-                      id={`website-category-${subcategory}`}
+                      id={`website-category-${subcategory._id}`}
                       type="radio"
                       name="website-category"
-                      checked={activeWebsiteCategory === subcategory}
-                      onChange={() => setActiveWebsiteCategory(subcategory)}
+                      checked={activeWebsiteCategory === subcategory.name}
+                      onChange={() => setActiveWebsiteCategory(subcategory.name)}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                     />
-                    <label htmlFor={`website-category-${subcategory}`} className="ml-2 text-sm text-gray-700">
-                      {subcategory}
+                    <label htmlFor={`website-category-${subcategory._id}`} className="ml-2 text-sm text-gray-700">
+                      {subcategory.name}
                     </label>
                   </div>
                 ))}
+                
+                {/* Show message if no subcategories */}
+                {subcategories.length === 0 && (
+                  <p className="text-sm text-gray-500 italic">No subcategories available</p>
+                )}
               </div>
             </div>
           </div>
@@ -378,17 +415,25 @@ export default function DahuaSaudiProductsPage() {
                   <div className="p-4">
                     <h3 className="text-lg font-medium text-gray-900 mb-2">{product.name}</h3>
                     <div className="flex flex-wrap gap-2 mb-3">
-                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                        {product.category}
-                      </span>
-                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                        {product.websiteCategory}
-                      </span>
+                      {product.category && (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                          {product.category}
+                        </span>
+                      )}
+                      {product.websiteCategory && (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          {product.websiteCategory}
+                        </span>
+                      )}
+                      {/* If product has subcategoryId but no websiteCategory name, show the name from subcategories */}
+                      {!product.websiteCategory && product.subcategoryId && (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          {subcategories.find(sub => sub._id === product.subcategoryId)?.name || 'Unknown Category'}
+                        </span>
+                      )}
                     </div>
-
-                    {product.description && (
-                      <p className="text-gray-700 text-sm mb-4 line-clamp-2">{product.description}</p>
-                    )}
+                    
+                    {/* Rest of the product card content remains the same */}
                     <Link
                       href={`/products/${productId}`}
                       className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"

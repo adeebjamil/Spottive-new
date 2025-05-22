@@ -12,6 +12,8 @@ interface IProduct {
   description?: string;
   category?: string;
   websiteCategory?: string;
+  subcategoryId?: string;
+  websiteCategoryId?: string;
   createdAt?: string | Date;
   slug?: string;
   images?: string[];
@@ -92,7 +94,17 @@ export default function HikvisionProductsPage() {
   let filteredProducts = pageProducts.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
-    const matchesWebsiteCategory = activeWebsiteCategory === 'All' || product.websiteCategory === activeWebsiteCategory;
+    
+    // Enhanced subcategory matching logic
+    const matchesWebsiteCategory = 
+      activeWebsiteCategory === 'All' || 
+      product.websiteCategory === activeWebsiteCategory ||
+      // Also match if subcategory ID matches
+      subcategories.some(sub => 
+        activeWebsiteCategory === sub.name && 
+        (product.subcategoryId === sub._id || product.websiteCategoryId === sub._id)
+      );
+    
     return matchesSearch && matchesCategory && matchesWebsiteCategory;
   });
 
@@ -223,23 +235,44 @@ export default function HikvisionProductsPage() {
 
             {/* Website Category Filter */}
             <div className="bg-white rounded-lg shadow-md p-5">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Website Category</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Website Categories</h3>
               <div className="space-y-2">
+                {/* Add "All" option first */}
+                <div key="all-subcategory" className="flex items-center">
+                  <input
+                    id="website-category-All"
+                    type="radio"
+                    name="websiteCategory"
+                    checked={activeWebsiteCategory === 'All'}
+                    onChange={() => setActiveWebsiteCategory('All')}
+                    className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                  />
+                  <label htmlFor="website-category-All" className="ml-2 text-sm text-gray-700">
+                    All
+                  </label>
+                </div>
+                
+                {/* Map through actual subcategories from API */}
                 {subcategories.map((subcategory) => (
-                  <div key={subcategory.name} className="flex items-center">
+                  <div key={subcategory._id} className="flex items-center">
                     <input
-                      id={`website-category-${subcategory.name}`}
+                      id={`website-category-${subcategory._id}`}
                       type="radio"
                       name="websiteCategory"
                       checked={activeWebsiteCategory === subcategory.name}
                       onChange={() => setActiveWebsiteCategory(subcategory.name)}
                       className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                     />
-                    <label htmlFor={`website-category-${subcategory.name}`} className="ml-2 text-sm text-gray-700">
+                    <label htmlFor={`website-category-${subcategory._id}`} className="ml-2 text-sm text-gray-700">
                       {subcategory.name}
                     </label>
                   </div>
                 ))}
+                
+                {/* Show message if no subcategories */}
+                {subcategories.length === 0 && (
+                  <p className="text-sm text-gray-500 italic">No subcategories available</p>
+                )}
               </div>
             </div>
           </div>
