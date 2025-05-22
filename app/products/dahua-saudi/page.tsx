@@ -18,6 +18,7 @@ interface IProduct {
   price?: number;
   subcategoryId?: string;
   websiteCategoryId?: string;
+  imageUrl?: string; // Added imageUrl property
 }
 
 export default function DahuaSaudiProductsPage() {
@@ -92,16 +93,8 @@ export default function DahuaSaudiProductsPage() {
     fetchPageProducts();
   }, []);
 
-  // Filter products by Dahua brand
-  const brandProducts = pageProducts.filter(
-    (product) =>
-      product.category === 'Dahua' ||
-      product.name?.toLowerCase().includes('dahua') ||
-      product.description?.toLowerCase().includes('dahua')
-  );
-
   // Filter products based on search, category, and website category
-  let filteredProducts = brandProducts.filter((product) => {
+  let filteredProducts = pageProducts.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
 
@@ -391,8 +384,13 @@ export default function DahuaSaudiProductsPage() {
                   }`}
                 >
                   <div className="relative h-48 w-full overflow-hidden">
-                    {product.images && product.images.length > 0 ? (
-                      <Image src={product.images[0]} alt={product.name} fill className="object-cover" />
+                    {(product.imageUrl || (product.images && product.images.length > 0)) ? (
+                      <Image 
+                        src={product.imageUrl || product.images![0]} 
+                        alt={product.name} 
+                        fill 
+                        className="object-cover" 
+                      />
                     ) : (
                       <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
                         <svg

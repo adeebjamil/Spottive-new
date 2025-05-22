@@ -349,75 +349,82 @@ export default function HikvisionProductsPage() {
             </div>
           )}
 
-          {/* Products Grid */}
-          {!loading && !error && (
-            <>
-              {filteredProducts.length > 0 ? (
-                <>
-                  <p className="mb-4 text-gray-600">Showing {filteredProducts.length} products</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredProducts.map((product) => (
-                      <div
-                        key={product._id}
-                        className="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:scale-[1.02]"
-                      >
-                        <Link href={`/product/${product.slug || product._id}`}>
-                          <div className="h-48 relative overflow-hidden">
-                            {(product.imageUrl || (product.images && product.images[0])) ? (
-                              <Image
-                                src={product.imageUrl || product.images![0]}
-                                alt={product.name}
-                                fill
-                                className="object-cover"
-                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                onError={(e) => {
-                                  // Fallback if image fails to load
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.display = 'none';
-                                  target.parentElement!.classList.add('bg-gray-200', 'flex', 'items-center', 'justify-center');
-                                  // Add fallback icon
-                                  const parent = target.parentElement!;
-                                  if (!parent.querySelector('svg')) {
-                                    parent.innerHTML += `<svg class="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>`;
-                                  }
-                                }}
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                                <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                              </div>
-                            )}
-                          </div>
-                          <div className="p-4">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{product.name}</h3>
-                            <p className="text-gray-600 mb-2 line-clamp-2">{product.description || 'No description available'}</p>
-                            <div className="flex justify-between items-center">
-                              <span className="text-blue-600 font-medium">
-                                {typeof product.price === 'number' ? `SAR ${(product.price as number).toFixed(2)}` : 'Contact for price'}
-                              </span>
-                              <span className="text-sm text-gray-500">{product.category}</span>
-                            </div>
-                          </div>
-                        </Link>
+         {/* Products Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredProducts.map((product) => {
+              const productId = product._id;
+              const isAnimated = typeof productId === 'string' && animatedProducts.includes(productId);
+
+              return (
+                <div
+                  key={productId}
+                  className={`bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 ${
+                    isAnimated ? 'scale-105' : ''
+                  }`}
+                >
+                  <div className="relative h-48 w-full overflow-hidden">
+                    {(product.imageUrl || (product.images && product.images.length > 0)) ? (
+                      <Image 
+                        src={product.imageUrl || product.images![0]} 
+                        alt={product.name} 
+                        fill 
+                        className="object-cover" 
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+                        <svg
+                          className="h-12 w-12 text-gray-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
                       </div>
-                    ))}
+                    )}
                   </div>
-                </>
-              ) : (
-                <div className="text-center py-12">
-                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <h3 className="mt-2 text-lg font-medium text-gray-900">No products found</h3>
-                  <p className="mt-1 text-gray-500">Try adjusting your search or filter criteria.</p>
+
+                  <div className="p-4">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">{product.name}</h3>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {product.category && (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                          {product.category}
+                        </span>
+                      )}
+                      {product.websiteCategory && (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          {product.websiteCategory}
+                        </span>
+                      )}
+                      {/* If product has subcategoryId but no websiteCategory name, show the name from subcategories */}
+                      {!product.websiteCategory && product.subcategoryId && (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          {subcategories.find(sub => sub._id === product.subcategoryId)?.name || 'Unknown Category'}
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* Rest of the product card content remains the same */}
+                    <Link
+                      href={`/products/${productId}`}
+                      className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+                    >
+                      Learn more
+                      <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
+                    </Link>
+                  </div>
                 </div>
-              )}
-            </>
-          )}
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
