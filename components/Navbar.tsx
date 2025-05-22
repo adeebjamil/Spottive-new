@@ -9,6 +9,7 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isProductsOpen, setIsProductsOpen] = useState(false);
   const [isBrandsOpen, setIsBrandsOpen] = useState(false);
+  const [closeTimeout, setCloseTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Handle scroll effect for navbar
   useEffect(() => {
@@ -23,6 +24,32 @@ export default function Navbar() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Improved dropdown handlers with delay
+  const handleMouseEnter = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
+    if (closeTimeout) {
+      clearTimeout(closeTimeout);
+      setCloseTimeout(null);
+    }
+    setter(true);
+  };
+
+  const handleMouseLeave = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
+    const timeout = setTimeout(() => {
+      setter(false);
+    }, 150); // 150ms delay before closing dropdown
+
+    setCloseTimeout(timeout);
+  };
+
+  // Clean up any timeouts when component unmounts
+  useEffect(() => {
+    return () => {
+      if (closeTimeout) {
+        clearTimeout(closeTimeout);
+      }
+    };
+  }, [closeTimeout]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -74,8 +101,8 @@ export default function Navbar() {
             {/* Our Products with hover dropdown */}
             <div 
               className="relative dropdown-container"
-              onMouseEnter={() => setIsProductsOpen(true)}
-              onMouseLeave={() => setIsProductsOpen(false)}
+              onMouseEnter={() => handleMouseEnter(setIsProductsOpen)}
+              onMouseLeave={() => handleMouseLeave(setIsProductsOpen)}
             >
               <Link
                 href="/products"
@@ -98,10 +125,19 @@ export default function Navbar() {
                 <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 w-[800px] bg-white rounded-md shadow-lg py-6 px-6 z-10 grid grid-cols-12 gap-4">
                   {/* Left column - 2 cards in a grid */}
                   <div className="col-span-8 grid grid-cols-2 gap-4">
-                    {/* Card 1 - Import from Figma */}
-                    <div className="bg-blue-500 text-white p-6 rounded-md">
-                      <h3 className="text-xl font-bold mb-6">Import<br />from Figma</h3>
-                      <Link href="/products/figma-import" className="flex items-center text-sm font-medium">
+                    {/* Card 1 - Replace with logo */}
+                    <div className="bg-blue-500 text-white p-6 rounded-md flex flex-col">
+                      <div className="flex-grow flex items-center justify-center">
+                        <Image 
+                          src="/brand/dahua.png" 
+                          alt="Dahua-saudi" 
+                          width={120} 
+                          height={60}
+                          className="h-25 w-auto object-contain mb-2" 
+                        />
+                      </div>
+                      <h4 className="font-medium text-center mb-4">Dahua-Saudi</h4>
+                      <Link href="/products/dahua-saudi" className="flex items-center text-sm font-medium">
                         Learn more 
                         <svg className="h-4 w-4 ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -109,10 +145,19 @@ export default function Navbar() {
                       </Link>
                     </div>
                     
-                    {/* Card 2 - Unlock collaboration */}
-                    <div className="bg-gray-100 p-6 rounded-md">
-                      <h3 className="text-xl font-bold mb-6">Unlock<br />collaboration</h3>
-                      <Link href="/products/collaboration" className="flex items-center text-sm font-medium text-purple-500">
+                    {/* Card 2 - Replace with logo */}
+                    <div className="bg-gray-100 p-6 rounded-md flex flex-col">
+                      <div className="flex-grow flex items-center justify-center">
+                        <Image 
+                          src="/brand/hikvision.png" 
+                          alt="Hikvision" 
+                          width={120} 
+                          height={60}
+                          className="h-25 w-auto object-contain mb-2" 
+                        />
+                      </div>
+                      <h4 className="font-medium text-center mb-4">Hikvision</h4>
+                      <Link href="/products/hikvision" className="flex items-center text-sm font-medium text-purple-500">
                         Learn more 
                         <svg className="h-4 w-4 ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -120,10 +165,19 @@ export default function Navbar() {
                       </Link>
                     </div>
                     
-                    {/* Card 3 - A brand-new way to design */}
-                    <div className="bg-purple-500 text-white p-6 rounded-md">
-                      <h3 className="text-xl font-bold mb-6">A brand-new<br />way to design<br />and animate</h3>
-                      <Link href="/products/design" className="flex items-center text-sm font-medium">
+                    {/* Card 3 - Replace with logo */}
+                    <div className="bg-purple-500 text-white p-6 rounded-md flex flex-col">
+                      <div className="flex-grow flex items-center justify-center">
+                        <Image 
+                          src="/brand/Uniview.png" 
+                          alt="Uniview" 
+                          width={120} 
+                          height={60}
+                          className="h-16 w-auto object-contain mb-2" 
+                        />
+                      </div>
+                      <h4 className="font-medium text-center mb-4">Uniview</h4>
+                      <Link href="/products/uniview" className="flex items-center text-sm font-medium">
                         Learn more 
                         <svg className="h-4 w-4 ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -131,10 +185,19 @@ export default function Navbar() {
                       </Link>
                     </div>
                     
-                    {/* Card 4 - Export to 4K */}
-                    <div className="bg-gray-100 p-6 rounded-md">
-                      <h3 className="text-xl font-bold mb-6">Export to 4K,<br />GIF, Lottie</h3>
-                      <Link href="/products/export" className="flex items-center text-sm font-medium text-purple-500">
+                    {/* Card 4 - Replace with logo */}
+                    <div className="bg-gray-100 p-6 rounded-md flex flex-col">
+                      <div className="flex-grow flex items-center justify-center">
+                        <Image 
+                          src="/brand/unv.png" 
+                          alt="UNV" 
+                          width={120} 
+                          height={60}
+                          className="h-25 w-auto object-contain mb-2" 
+                        />
+                      </div>
+                      <h4 className="font-medium text-center mb-4">UNV</h4>
+                      <Link href="/products/unv" className="flex items-center text-sm font-medium text-purple-500">
                         Learn more 
                         <svg className="h-4 w-4 ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -148,13 +211,13 @@ export default function Navbar() {
                     <h3 className="text-lg font-bold mb-4">What's new</h3>
                     <div className="space-y-3">
                       <Link href="/updates/figma-config" className="block text-gray-700 hover:text-black">
-                        Figma Config 2025
+                        Our CCTV products
                       </Link>
                       <Link href="/updates/new-website" className="block text-gray-700 hover:text-black">
-                        New website
+                        all types of cctv
                       </Link>
                       <Link href="/updates/css-easing" className="block text-gray-700 hover:text-black">
-                        CSS Easing export
+                        Best in UAE and Saudi
                       </Link>
                       <div className="mt-6">
                         <Link 
@@ -176,8 +239,8 @@ export default function Navbar() {
             {/* Our Brands with hover dropdown */}
             <div 
               className="relative dropdown-container"
-              onMouseEnter={() => setIsBrandsOpen(true)}
-              onMouseLeave={() => setIsBrandsOpen(false)}
+              onMouseEnter={() => handleMouseEnter(setIsBrandsOpen)}
+              onMouseLeave={() => handleMouseLeave(setIsBrandsOpen)}
             >
               <Link
                 href="/brands"
@@ -195,11 +258,11 @@ export default function Navbar() {
                 </svg>
               </Link>
               
-              {/* Brands Mega Dropdown - Adjusted position */}
+              {/* Brands Mega Dropdown - Simplified version */}
               {isBrandsOpen && (
                 <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 w-[800px] bg-white rounded-md shadow-lg py-8 px-6 z-10">
-                  {/* Featured Brands with colorful backgrounds */}
-                  <div className="grid grid-cols-3 gap-4 mb-8">
+                  {/* Featured Brands with colorful backgrounds - kept */}
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="bg-blue-500 text-white p-5 rounded-md flex flex-col items-center">
                       <Image 
                         src="/brand/10.jpg" 
@@ -232,136 +295,6 @@ export default function Navbar() {
                       />
                       <p className="text-sm font-medium mt-2">Enterprise Networking</p>
                     </div>
-                  </div>
-                  
-                  {/* Brand Grid Layout with larger logos */}
-                  <div className="grid grid-cols-4 gap-y-10 gap-x-6">
-                    <Link href="/brands/unv" className="flex flex-col items-center justify-center group">
-                      <Image 
-                        src="/brand/2.jpg" 
-                        alt="UNV" 
-                        width={140} 
-                        height={70}
-                        className="h-16 w-auto object-contain transition-transform group-hover:scale-110" 
-                      />
-                    </Link>
-                    
-                    <Link href="/brands/ezviz" className="flex flex-col items-center justify-center group">
-                      <Image 
-                        src="/brand/3.jpg" 
-                        alt="Ezviz" 
-                        width={140} 
-                        height={70}
-                        className="h-16 w-auto object-contain transition-transform group-hover:scale-110" 
-                      />
-                    </Link>
-                    
-                    <Link href="/brands/d-link" className="flex flex-col items-center justify-center group">
-                      <Image 
-                        src="/brand/4.jpg" 
-                        alt="D-Link" 
-                        width={140} 
-                        height={70}
-                        className="h-16 w-auto object-contain transition-transform group-hover:scale-110" 
-                      />
-                      <p className="text-xs font-medium mt-1 text-gray-500">Connectivity</p>
-                    </Link>
-                    
-                    <Link href="/brands/grandstream" className="flex flex-col items-center justify-center group">
-                      <Image 
-                        src="/brand/5.jpg" 
-                        alt="Grandstream" 
-                        width={140} 
-                        height={70}
-                        className="h-16 w-auto object-contain transition-transform group-hover:scale-110" 
-                      />
-                    </Link>
-                    
-                    <Link href="/brands/imou" className="flex flex-col items-center justify-center group">
-                      <Image 
-                        src="/brand/7.jpg" 
-                        alt="Imou" 
-                        width={140} 
-                        height={70}
-                        className="h-16 w-auto object-contain transition-transform group-hover:scale-110" 
-                      />
-                      <p className="text-xs font-medium mt-1 text-gray-500">Smart Home</p>
-                    </Link>
-                    
-                    <Link href="/brands/tp-link" className="flex flex-col items-center justify-center group">
-                      <Image 
-                        src="/brand/8.jpg" 
-                        alt="Tp-Link" 
-                        width={140} 
-                        height={70}
-                        className="h-16 w-auto object-contain transition-transform group-hover:scale-110" 
-                      />
-                    </Link>
-                    
-                    <Link href="/brands/seagate" className="flex flex-col items-center justify-center group">
-                      <Image 
-                        src="/brand/9.jpg" 
-                        alt="Seagate" 
-                        width={140} 
-                        height={70}
-                        className="h-16 w-auto object-contain transition-transform group-hover:scale-110" 
-                      />
-                      <p className="text-xs font-medium mt-1 text-gray-500">Storage Solutions</p>
-                    </Link>
-                    
-                    <Link href="/brands/zkteco" className="flex flex-col items-center justify-center group">
-                      <Image 
-                        src="/brand/11.jpg" 
-                        alt="ZKTeco" 
-                        width={140} 
-                        height={70}
-                        className="h-16 w-auto object-contain transition-transform group-hover:scale-110" 
-                      />
-                    </Link>
-                    
-                    <Link href="/brands/wd" className="flex flex-col items-center justify-center group">
-                      <Image 
-                        src="/brand/13.jpg" 
-                        alt="WD" 
-                        width={140} 
-                        height={70}
-                        className="h-16 w-auto object-contain transition-transform group-hover:scale-110" 
-                      />
-                      <p className="text-xs font-medium mt-1 text-gray-500">Digital Storage</p>
-                    </Link>
-                    
-                    <Link href="/brands/eufy" className="flex flex-col items-center justify-center group">
-                      <Image 
-                        src="/brand/14.jpg" 
-                        alt="Eufy" 
-                        width={140} 
-                        height={70}
-                        className="h-16 w-auto object-contain transition-transform group-hover:scale-110" 
-                      />
-                    </Link>
-                    
-                    <Link href="/brands/yealink" className="flex flex-col items-center justify-center group">
-                      <Image 
-                        src="/brand/15.jpg" 
-                        alt="Yealink" 
-                        width={140} 
-                        height={70}
-                        className="h-16 w-auto object-contain transition-transform group-hover:scale-110" 
-                      />
-                    </Link>
-                  </div>
-                  
-                  {/* See All Brands Button */}
-                  <div className="mt-8 text-center">
-                    <Link 
-                      href="/brands" 
-                      className="inline-flex items-center px-6 py-3 bg-gray-100 rounded-full text-sm font-medium hover:bg-gray-200"
-                    >
-                      See all brands 
-                      <svg className="h-4 w-4 ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                      </svg>
-                    </Link>
                   </div>
                 </div>
               )}
@@ -398,7 +331,7 @@ export default function Navbar() {
               aria-label="Twitter"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                <path d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z"/>
+                <path d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07a4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z"/>
               </svg>
             </Link>
             <Link 
@@ -407,7 +340,7 @@ export default function Navbar() {
               aria-label="YouTube"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                <path d="M21.543 6.498C22 8.28 22 12 22 12s0 3.72-.457 5.502c-.254.985-.997 1.76-1.938 2.022C17.896 20 12 20 12 20s-5.893 0-7.605-.476c-.945-.266-1.687-1.04-1.938-2.022C2 15.72 2 12 2 12s0-3.72.457-5.502c-.254-.985-.997-1.76-1.938-2.022C6.107 4 12 4 12 4s5.896 0 7.605.476c.945.266 1.687-1.04 1.938-2.022zM10 15.5l6-3.5-6-3.5v7z" />
+                <path d="M21.543 6.498C22 8.28 22 12 22 12s0 3.72-.457 5.502c-.254-.985-.997-1.76-1.938-2.022C17.896 20 12 20 12 20s-5.893 0-7.605-.476c-.945-.266-1.687-1.04-1.938-2.022C2 15.72 2 12 2 12s0-3.72.457-5.502c-.254-.985-.997-1.76-1.938-2.022C6.107 4 12 4 12 4s5.896 0 7.605.476c.945-.266 1.687-1.04 1.938-2.022zM10 15.5l6-3.5-6-3.5v7z" />
               </svg>
             </Link>
           </div>
@@ -609,8 +542,8 @@ export default function Navbar() {
                 aria-label="YouTube"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                  <path d="M21.543 6.498C22 8.28 22 12 22 12s0 3.72-.457 5.502c-.254.985-.997 1.76-1.938 2.022C17.896 20 12 20 12 20s-5.893 0-7.605-.476c-.945-.266-1.687-1.04-1.938-2.022C2 15.72 2 12 2 12s0-3.72.457-5.502c-.254-.985-.997-1.76-1.938-2.022C6.107 4 12 4 12 4s5.896 0 7.605.476c.945.266 1.687-1.04 1.938-2.022zM10 15.5l6-3.5-6-3.5v7z" />
-                </svg>
+                  <path d="M21.543 6.498C22 8.28 22 12 22 12s0 3.72-.457 5.502c-.254-.985-.997-1.76-1.938-2.022C17.896 20 12 20 12 20s-5.893 0-7.605-.476c-.945-.266-1.687-1.04-1.938-2.022C2 15.72 2 12 2 12s0-3.72.457-5.502c-.254-.985-.997-1.76-1.938-2.022C6.107 4 12 4 12 4s5.896 0 7.605.476c.945-.266 1.687-1.04 1.938-2.022zM10 15.5l6-3.5-6-3.5v7z" />
+              </svg>
               </Link>
             </div>
           </div>
