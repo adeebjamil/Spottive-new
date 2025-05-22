@@ -4,6 +4,8 @@ import clientPromise from '@/lib/mongodb';
 import { getIo } from '@/lib/mongodb';
 
 export interface IProduct {
+  [x: string]: string;
+  [x: string]: string | undefined;
   id?: string;
   _id?: string;
   name: string;
