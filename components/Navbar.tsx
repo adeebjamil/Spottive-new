@@ -236,7 +236,27 @@ export default function Navbar() {
               )}
             </div>
             
-            {/* Our Brands with hover dropdown */}
+           
+
+
+<Link
+              href="/contact"
+              className="text-gray-700 hover:text-black px-3 py-2 text-sm font-medium"
+            >
+              Contact
+            </Link>
+
+
+
+   <Link
+              href="/who-we-are"
+              className="text-gray-700 hover:text-black px-3 py-2 text-sm font-medium"
+            >
+              Who We Are
+            </Link>
+
+
+ {/* Our Brands with hover dropdown */}
             <div 
               className="relative dropdown-container"
               onMouseEnter={() => handleMouseEnter(setIsBrandsOpen)}
@@ -300,18 +320,9 @@ export default function Navbar() {
               )}
             </div>
 
-            <Link
-              href="/who-we-are"
-              className="text-gray-700 hover:text-black px-3 py-2 text-sm font-medium"
-            >
-              Who We Are
-            </Link>
-            <Link
-              href="/contact"
-              className="text-gray-700 hover:text-black px-3 py-2 text-sm font-medium"
-            >
-              Contact
-            </Link>
+
+         
+            
           </nav>
 
           {/* Social Media Icons */}

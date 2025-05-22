@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useProducts } from '@/hooks/useProducts';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -34,84 +34,177 @@ export default function UNVProductsPage() {
   const [sortOption, setSortOption] = useState('newest');
   const [categories, setCategories] = useState<string[]>(['All']);
   const [subcategories, setSubcategories] = useState<any[]>([]);
+  const [visibleProductCount, setVisibleProductCount] = useState(12); // Initial load count
   const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const productGridRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   
-  // Fetch products specifically for this page
-  useEffect(() => {
-    async function fetchPageProducts() {
-      try {
-        setLoading(true);
-        
-        // Fetch products assigned to this page
-        const response = await fetch('/api/pages/unv/products');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch page products');
-        }
-        
-        const data = await response.json();
-        setPageProducts(data);
-        
-        // Extract categories for this page
-        const pageCategories = await fetch('/api/pages/unv/categories');
-        if (pageCategories.ok) {
-          const categoriesData = await pageCategories.json();
-          setCategories(['All', ...categoriesData.map((cat: any) => cat.name)]);
-        }
-        
-        // Extract subcategories for this page
-        const pageSubcategories = await fetch('/api/pages/unv/subcategories');
-        if (pageSubcategories.ok) {
-          const subcategoriesData = await pageSubcategories.json();
-          setSubcategories(subcategoriesData);
-        }
-        
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching page products:', err);
-        setError('Failed to load products');
-      } finally {
-        setLoading(false);
+  // Optimized data fetching with parallel requests
+  const fetchPageProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Parallel API calls for better performance
+      const [productsRes, categoriesRes, subcategoriesRes] = await Promise.all([
+        fetch('/api/pages/unv/products'),
+        fetch('/api/pages/unv/categories'),
+        fetch('/api/pages/unv/subcategories')
+      ]);
+      
+      if (!productsRes.ok) {
+        throw new Error('Failed to fetch page products');
       }
+      
+      const data = await productsRes.json();
+      setPageProducts(data);
+      
+      // Process categories if available
+      if (categoriesRes.ok) {
+        const categoriesData = await categoriesRes.json();
+        setCategories(['All', ...categoriesData.map((cat: any) => cat.name)]);
+      }
+      
+      // Process subcategories if available
+      if (subcategoriesRes.ok) {
+        const subcategoriesData = await subcategoriesRes.json();
+        setSubcategories(subcategoriesData);
+      }
+      
+      setError(null);
+      
+      // Animate initial products
+      setTimeout(() => {
+        const initialIds = data.slice(0, 12).map((p: IProduct) => p._id || p.id).filter(Boolean);
+        setAnimatedProducts(initialIds);
+      }, 100);
+    } catch (err) {
+      console.error('Error fetching page products:', err);
+      setError('Failed to load products');
+    } finally {
+      setLoading(false);
     }
-    
+  }, []);
+  
+  // Fetch products once on component mount
+  useEffect(() => {
     fetchPageProducts();
+  }, [fetchPageProducts]);
+  
+  // Optimized click outside handler
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+      setShowSortDropdown(false);
+    }
   }, []);
   
   // Close sort dropdown when clicking outside
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
-        setShowSortDropdown(false);
-      }
-    }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [handleClickOutside]);
+  
+  // Optimized search handler with debounce
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    
+    // Reset visible count when searching
+    if (value !== searchTerm) {
+      setVisibleProductCount(12);
+    }
+  }, [searchTerm]);
+  
+  // Reset filters handler
+  const handleResetFilters = useCallback(() => {
+    setSearchTerm('');
+    setActiveCategory('All');
+    setActiveWebsiteCategory('All');
+    setSortOption('newest');
+    setVisibleProductCount(12);
+    
+    // Focus back on search after reset
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
   }, []);
   
-  // Filter products based on search, category, and website category
-  let filteredProducts = pageProducts.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
-    const matchesWebsiteCategory = activeWebsiteCategory === 'All' || product.websiteCategory === activeWebsiteCategory;
-    return matchesSearch && matchesCategory && matchesWebsiteCategory;
-  });
+  // Load more products handler
+  const handleLoadMore = useCallback(() => {
+    setVisibleProductCount(prev => prev + 12);
+    
+    // Animate newly visible products with a slight delay
+    setTimeout(() => {
+      const productIds = filteredProducts
+        .slice(visibleProductCount, visibleProductCount + 12)
+        .map(p => p._id || p.id)
+        .filter((id): id is string => typeof id === 'string');
+        
+      if (productIds.length > 0) {
+        setAnimatedProducts(prev => [...prev, ...productIds]);
+      }
+    }, 100);
+  }, [visibleProductCount]);
   
-  // Sort products based on selected option
-  filteredProducts = [...filteredProducts].sort((a, b) => {
-    switch (sortOption) {
-      case 'newest':
-        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-      case 'oldest':
-        return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-      case 'a-z':
-        return a.name.localeCompare(b.name);
-      case 'z-a':
-        return b.name.localeCompare(a.name);
-      default:
-        return 0;
+  // Memoize filtered products for better performance
+  const filteredProducts = useMemo(() => {
+    // Filter products based on criteria
+    const filtered = pageProducts.filter(product => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
+      const matchesWebsiteCategory = activeWebsiteCategory === 'All' || product.websiteCategory === activeWebsiteCategory;
+      return matchesSearch && matchesCategory && matchesWebsiteCategory;
+    });
+    
+    // Sort filtered products
+    return [...filtered].sort((a, b) => {
+      switch (sortOption) {
+        case 'newest':
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        case 'oldest':
+          return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        case 'a-z':
+          return a.name.localeCompare(b.name);
+        case 'z-a':
+          return b.name.localeCompare(a.name);
+        default:
+          return 0;
+      }
+    });
+  }, [pageProducts, searchTerm, activeCategory, activeWebsiteCategory, sortOption]);
+  
+  // Automatic load more when scrolling to bottom
+  useEffect(() => {
+    if (!loading) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0]?.isIntersecting && filteredProducts.length > visibleProductCount) {
+            handleLoadMore();
+          }
+        },
+        { rootMargin: '200px', threshold: 0.1 }
+      );
+      
+      if (productGridRef.current) {
+        observer.observe(productGridRef.current);
+      }
+      
+      return () => observer.disconnect();
     }
-  });
+  }, [filteredProducts.length, visibleProductCount, handleLoadMore, loading]);
+  
+  // Memoize visible products to prevent unnecessary re-renders
+  const visibleProducts = useMemo(() => 
+    filteredProducts.slice(0, visibleProductCount),
+    [filteredProducts, visibleProductCount]
+  );
+  
+  // Memoize sort options to prevent recreating the array on every render
+  const sortOptions = useMemo(() => [
+    {id: 'newest', name: 'Newest First'},
+    {id: 'oldest', name: 'Oldest First'},
+    {id: 'a-z', name: 'A to Z'},
+    {id: 'z-a', name: 'Z to A'},
+  ], []);
   
   return (
     <div className="container mx-auto px-4 py-8">
@@ -155,12 +248,7 @@ export default function UNVProductsPage() {
               className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20"
             >
               <div className="py-1">
-                {[
-                  {id: 'newest', name: 'Newest First'},
-                  {id: 'oldest', name: 'Oldest First'},
-                  {id: 'a-z', name: 'A to Z'},
-                  {id: 'z-a', name: 'Z to A'},
-                ].map(option => (
+                {sortOptions.map(option => (
                   <button
                     key={option.id}
                     onClick={() => {
@@ -188,10 +276,11 @@ export default function UNVProductsPage() {
               <h3 className="text-lg font-medium text-gray-900 mb-4">Search</h3>
               <div className="relative">
                 <input
+                  ref={searchInputRef}
                   type="text"
                   placeholder="Search products..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={handleSearchChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 />
                 <svg className="w-5 h-5 absolute right-3 top-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -258,6 +347,14 @@ export default function UNVProductsPage() {
                 ))}
               </div>
             </div>
+            
+            {/* Reset Filters Button */}
+            <button
+              onClick={handleResetFilters}
+              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-300"
+            >
+              Reset Filters
+            </button>
           </div>
         </div>
 
@@ -266,7 +363,7 @@ export default function UNVProductsPage() {
           {/* Desktop Sort Options */}
           <div className="hidden md:flex justify-between items-center mb-8">
             <div className="text-sm text-gray-500">
-              Showing <span className="font-medium text-gray-900">{filteredProducts.length}</span> products
+              Showing <span className="font-medium text-gray-900">{visibleProducts.length}</span> of {filteredProducts.length} products
             </div>
             
             <div className="relative" ref={sortDropdownRef}>
@@ -287,12 +384,7 @@ export default function UNVProductsPage() {
               {showSortDropdown && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20">
                   <div className="py-1">
-                    {[
-                      {id: 'newest', name: 'Newest First'},
-                      {id: 'oldest', name: 'Oldest First'},
-                      {id: 'a-z', name: 'A to Z'},
-                      {id: 'z-a', name: 'Z to A'},
-                    ].map(option => (
+                    {sortOptions.map(option => (
                       <button
                         key={option.id}
                         onClick={() => {
@@ -335,9 +427,9 @@ export default function UNVProductsPage() {
             </div>
           )}
 
-          {/* Products Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map((product) => {
+          {/* Products Grid with Progressive Loading */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" ref={productGridRef}>
+            {visibleProducts.map((product, index) => {
               const productId = product.id || product._id;
               const isAnimated = typeof productId === 'string' && animatedProducts.includes(productId);
               
@@ -347,6 +439,7 @@ export default function UNVProductsPage() {
                   className={`bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 ${
                     isAnimated ? 'scale-105' : ''
                   }`}
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <div className="relative h-48 w-full overflow-hidden">
                     {product.imageUrl || (product.images && product.images[0]) ? (
@@ -354,13 +447,16 @@ export default function UNVProductsPage() {
                         src={product.imageUrl || product.images![0]}
                         alt={product.name}
                         fill
-                        className="object-cover"
+                        loading={index < 6 ? "eager" : "lazy"}
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="object-cover transition-transform duration-500 hover:scale-105"
+                        placeholder="blur"
+                        blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDAgMjAwIj48cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZWVlZSI+PC9yZWN0Pjwvc3ZnPg=="
                         onError={(e) => {
                           // Fallback if image fails to load
                           const target = e.target as HTMLImageElement;
                           target.onerror = null;
-                          target.src = '/placeholder-image.jpg'; // Create a default placeholder image in your public folder
+                          target.src = '/placeholder-image.jpg'; // Use a placeholder
                         }}
                       />
                     ) : (
@@ -393,6 +489,7 @@ export default function UNVProductsPage() {
                     <Link 
                       href={`/product/${product.slug || productId}`}
                       className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+                      prefetch={false} // Don't prefetch all product pages
                     >
                       Learn more
                       <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -403,7 +500,24 @@ export default function UNVProductsPage() {
                 </div>
               );
             })}
+            
+            {/* Invisible loader indicator for intersection observer */}
+            {filteredProducts.length > visibleProductCount && (
+              <div className="h-4 w-full opacity-0" aria-hidden="true"></div>
+            )}
           </div>
+          
+          {/* Load More Button - Only show if there are more products to load */}
+          {!loading && filteredProducts.length > visibleProductCount && (
+            <div className="mt-8 text-center">
+              <button 
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                onClick={handleLoadMore}
+              >
+                Load More Products
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

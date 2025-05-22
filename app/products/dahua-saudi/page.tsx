@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useProducts } from '@/hooks/useProducts';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -36,49 +36,66 @@ export default function DahuaSaudiProductsPage() {
   const [subcategories, setSubcategories] = useState<any[]>([]); // Change from string[] to any[]
   const [pageLoading, setLoading] = useState(false);
   const [pageError, setError] = useState<string | null>(null);
+  const [visibleProductCount, setVisibleProductCount] = useState(20); // For pagination
+
+  // Use useCallback for event handlers
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+      setShowSortDropdown(false);
+    }
+  }, []);
+
+  // Memoized searchTerm handler for better performance
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  // Memoized category handler
+  const handleCategoryChange = useCallback((category: string) => {
+    setActiveCategory(category);
+  }, []);
+
+  // Memoized website category handler
+  const handleWebsiteCategoryChange = useCallback((category: string) => {
+    setActiveWebsiteCategory(category);
+  }, []);
 
   // Close sort dropdown when clicking outside
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
-        setShowSortDropdown(false);
-      }
-    }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [handleClickOutside]); // Use the memoized callback
 
-  // Fetch products specifically for this page
+  // Optimized data fetching with parallel requests
   useEffect(() => {
     async function fetchPageProducts() {
       try {
         setLoading(true);
 
-        // Fetch products assigned to this page
-        const response = await fetch('/api/pages/dahua-saudi/products');
+        // Use Promise.all for parallel requests
+        const [productsRes, categoriesRes, subcategoriesRes] = await Promise.all([
+          fetch('/api/pages/dahua-saudi/products'),
+          fetch('/api/pages/dahua-saudi/categories'),
+          fetch('/api/pages/dahua-saudi/subcategories')
+        ]);
 
-        if (!response.ok) {
+        if (!productsRes.ok) {
           throw new Error('Failed to fetch page products');
         }
 
-        const data = await response.json();
+        const data = await productsRes.json();
         setPageProducts(data);
 
         // Extract categories for this page
-        const pageCategories = await fetch('/api/pages/dahua-saudi/categories');
-        if (pageCategories.ok) {
-          const categoriesData = await pageCategories.json();
+        if (categoriesRes.ok) {
+          const categoriesData = await categoriesRes.json();
           setCategories(['All', ...categoriesData.map((cat: any) => cat.name)]);
         }
 
         // Extract subcategories for this page
-        const pageSubcategories = await fetch('/api/pages/dahua-saudi/subcategories');
-        if (pageSubcategories.ok) {
-          const subcategoriesData = await pageSubcategories.json();
-          console.log('Loaded subcategories:', subcategoriesData); // Debug log
-          setSubcategories(subcategoriesData); // Now storing full objects
-        } else {
-          console.error('Failed to fetch subcategories');
+        if (subcategoriesRes.ok) {
+          const subcategoriesData = await subcategoriesRes.json();
+          setSubcategories(subcategoriesData);
         }
 
         setError(null);
@@ -93,40 +110,58 @@ export default function DahuaSaudiProductsPage() {
     fetchPageProducts();
   }, []);
 
-  // Filter products based on search, category, and website category
-  let filteredProducts = pageProducts.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
+  // Memoize filtered products to prevent recalculation on every render
+  const filteredProducts = useMemo(() => {
+    // Filter products based on search, category, and website category
+    let filtered = pageProducts.filter((product) => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
+      const matchesWebsiteCategory =
+        activeWebsiteCategory === 'All' ||
+        product.websiteCategory === activeWebsiteCategory ||
+        // Also match if subcategory ID matches
+        subcategories.some(
+          (sub) =>
+            activeWebsiteCategory === sub.name &&
+            (product.subcategoryId === sub._id || product.websiteCategoryId === sub._id)
+        );
 
-    // Enhanced subcategory matching logic
-    const matchesWebsiteCategory =
-      activeWebsiteCategory === 'All' ||
-      product.websiteCategory === activeWebsiteCategory ||
-      // Also match if subcategory ID matches
-      subcategories.some(
-        (sub) =>
-          activeWebsiteCategory === sub.name &&
-          (product.subcategoryId === sub._id || product.websiteCategoryId === sub._id)
-      );
+      return matchesSearch && matchesCategory && matchesWebsiteCategory;
+    });
+    
+    // Sort filtered products
+    return [...filtered].sort((a, b) => {
+      switch (sortOption) {
+        case 'newest':
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        case 'oldest':
+          return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        case 'a-z':
+          return a.name.localeCompare(b.name);
+        case 'z-a':
+          return b.name.localeCompare(a.name);
+        default:
+          return 0;
+      }
+    });
+  }, [pageProducts, searchTerm, activeCategory, activeWebsiteCategory, sortOption, subcategories]);
 
-    return matchesSearch && matchesCategory && matchesWebsiteCategory;
-  });
-
-  // Sort products based on selected option
-  filteredProducts = [...filteredProducts].sort((a, b) => {
-    switch (sortOption) {
-      case 'newest':
-        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-      case 'oldest':
-        return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-      case 'a-z':
-        return a.name.localeCompare(b.name);
-      case 'z-a':
-        return b.name.localeCompare(a.name);
-      default:
-        return 0;
+  // Animation for products - optimize with useEffect dependency array
+  useEffect(() => {
+    if (!pageLoading && pageProducts.length > 0) {
+      const ids = pageProducts.slice(0, 20).map(p => p._id).filter(Boolean);
+      const timer = setTimeout(() => {
+        setAnimatedProducts(ids);
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
-  });
+  }, [pageLoading, pageProducts]);
+
+  // Load more handler
+  const handleLoadMore = useCallback(() => {
+    setVisibleProductCount(prev => prev + 20);
+  }, []);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -206,7 +241,7 @@ export default function DahuaSaudiProductsPage() {
                   type="text"
                   placeholder="Search products..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={handleSearchChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 />
                 <svg
@@ -236,7 +271,7 @@ export default function DahuaSaudiProductsPage() {
                       type="radio"
                       name="category"
                       checked={activeCategory === category}
-                      onChange={() => setActiveCategory(category)}
+                      onChange={() => handleCategoryChange(category)}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                     />
                     <label htmlFor={`category-${category}`} className="ml-2 text-sm text-gray-700">
@@ -258,7 +293,7 @@ export default function DahuaSaudiProductsPage() {
                     type="radio"
                     name="website-category"
                     checked={activeWebsiteCategory === 'All'}
-                    onChange={() => setActiveWebsiteCategory('All')}
+                    onChange={() => handleWebsiteCategoryChange('All')}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                   />
                   <label htmlFor="website-category-All" className="ml-2 text-sm text-gray-700">
@@ -274,7 +309,7 @@ export default function DahuaSaudiProductsPage() {
                       type="radio"
                       name="website-category"
                       checked={activeWebsiteCategory === subcategory.name}
-                      onChange={() => setActiveWebsiteCategory(subcategory.name)}
+                      onChange={() => handleWebsiteCategoryChange(subcategory.name)}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                     />
                     <label htmlFor={`website-category-${subcategory._id}`} className="ml-2 text-sm text-gray-700">
@@ -372,7 +407,7 @@ export default function DahuaSaudiProductsPage() {
 
           {/* Products Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map((product) => {
+            {filteredProducts.slice(0, visibleProductCount).map((product) => {
               const productId = product._id;
               const isAnimated = typeof productId === 'string' && animatedProducts.includes(productId);
 
@@ -389,7 +424,11 @@ export default function DahuaSaudiProductsPage() {
                         src={product.imageUrl || product.images![0]} 
                         alt={product.name} 
                         fill 
-                        className="object-cover" 
+                        loading="lazy"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="object-cover"
+                        placeholder="blur"
+                        blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDAgMjAwIj48cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZWVlZSI+PC9yZWN0Pjwvc3ZnPg=="
                       />
                     ) : (
                       <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
@@ -435,6 +474,7 @@ export default function DahuaSaudiProductsPage() {
                     <Link
                       href={`/products/${productId}`}
                       className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+                      prefetch={false} // Avoid prefetching all product pages
                     >
                       Learn more
                       <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -446,6 +486,18 @@ export default function DahuaSaudiProductsPage() {
               );
             })}
           </div>
+
+          {/* Load More Button */}
+          {filteredProducts.length > visibleProductCount && (
+            <div className="mt-8 text-center">
+              <button
+                onClick={handleLoadMore}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+              >
+                Load More Products
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

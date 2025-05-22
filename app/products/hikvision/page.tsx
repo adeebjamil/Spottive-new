@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useProducts } from '@/hooks/useProducts';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -36,34 +36,61 @@ export default function HikvisionProductsPage() {
   const [categories, setCategories] = useState<string[]>(['All']);
   const [subcategories, setSubcategories] = useState<any[]>([]);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const [visibleProductCount, setVisibleProductCount] = useState(20);
 
-  // Fetch products specifically for this page
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+      setShowSortDropdown(false);
+    }
+  }, []);
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  const handleCategoryChange = useCallback((category: string) => {
+    setActiveCategory(category);
+  }, []);
+
+  const handleWebsiteCategoryChange = useCallback((category: string) => {
+    setActiveWebsiteCategory(category);
+  }, []);
+
+  const handleSortOptionChange = useCallback((option: string) => {
+    setSortOption(option);
+    setShowSortDropdown(false);
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [handleClickOutside]);
+
   useEffect(() => {
     async function fetchPageProducts() {
       try {
         setLoading(true);
 
-        // Fetch products assigned to this page
-        const response = await fetch('/api/pages/hikvision/products');
+        const [productsRes, categoriesRes, subcategoriesRes] = await Promise.all([
+          fetch('/api/pages/hikvision/products'),
+          fetch('/api/pages/hikvision/categories'),
+          fetch('/api/pages/hikvision/subcategories'),
+        ]);
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch page products');
+        if (!productsRes.ok) {
+          throw new Error('Failed to fetch products');
         }
 
-        const data = await response.json();
+        const data = await productsRes.json();
         setPageProducts(data);
 
-        // Extract categories for this page
-        const pageCategories = await fetch('/api/pages/hikvision/categories');
-        if (pageCategories.ok) {
-          const categoriesData = await pageCategories.json();
+        if (categoriesRes.ok) {
+          const categoriesData = await categoriesRes.json();
           setCategories(['All', ...categoriesData.map((cat: any) => cat.name)]);
         }
 
-        // Extract subcategories for this page
-        const pageSubcategories = await fetch('/api/pages/hikvision/subcategories');
-        if (pageSubcategories.ok) {
-          const subcategoriesData = await pageSubcategories.json();
+        if (subcategoriesRes.ok) {
+          const subcategoriesData = await subcategoriesRes.json();
           setSubcategories(subcategoriesData);
         }
 
@@ -79,64 +106,63 @@ export default function HikvisionProductsPage() {
     fetchPageProducts();
   }, []);
 
-  // Close sort dropdown when clicking outside
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
-        setShowSortDropdown(false);
+    if (!loading && pageProducts.length > 0) {
+      const ids = pageProducts.slice(0, 20).map((p) => p._id).filter(Boolean);
+      const timer = setTimeout(() => {
+        setAnimatedProducts(ids);
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [loading, pageProducts]);
+
+  const filteredProducts = useMemo(() => {
+    let filtered = pageProducts.filter((product) => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
+
+      const matchesWebsiteCategory =
+        activeWebsiteCategory === 'All' ||
+        product.websiteCategory === activeWebsiteCategory ||
+        subcategories.some(
+          (sub) =>
+            activeWebsiteCategory === sub.name &&
+            (product.subcategoryId === sub._id || product.websiteCategoryId === sub._id)
+        );
+
+      return matchesSearch && matchesCategory && matchesWebsiteCategory;
+    });
+
+    return [...filtered].sort((a, b) => {
+      switch (sortOption) {
+        case 'newest':
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        case 'oldest':
+          return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        case 'a-z':
+          return a.name.localeCompare(b.name);
+        case 'z-a':
+          return b.name.localeCompare(a.name);
+        default:
+          return 0;
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    });
+  }, [pageProducts, searchTerm, activeCategory, activeWebsiteCategory, sortOption, subcategories]);
+
+  const handleLoadMore = useCallback(() => {
+    setVisibleProductCount((prev) => prev + 20);
   }, []);
-
-  // Filter products based on search, category, and website category
-  let filteredProducts = pageProducts.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
-    
-    // Enhanced subcategory matching logic
-    const matchesWebsiteCategory = 
-      activeWebsiteCategory === 'All' || 
-      product.websiteCategory === activeWebsiteCategory ||
-      // Also match if subcategory ID matches
-      subcategories.some(sub => 
-        activeWebsiteCategory === sub.name && 
-        (product.subcategoryId === sub._id || product.websiteCategoryId === sub._id)
-      );
-    
-    return matchesSearch && matchesCategory && matchesWebsiteCategory;
-  });
-
-  // Sort products based on selected option
-  filteredProducts = [...filteredProducts].sort((a, b) => {
-    switch (sortOption) {
-      case 'newest':
-        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-      case 'oldest':
-        return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-      case 'a-z':
-        return a.name.localeCompare(b.name);
-      case 'z-a':
-        return b.name.localeCompare(a.name);
-      default:
-        return 0;
-    }
-  });
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Page Header */}
       <div className="mb-12 text-center">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-          Hikvision Products
-        </h1>
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Hikvision Products</h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
           Discover our premium selection of Hikvision security cameras and surveillance solutions.
         </p>
       </div>
 
-      {/* Mobile Filter Toggle */}
       <div className="flex justify-between items-center mb-6 md:hidden">
         <button
           onClick={() => setShowMobileFilters(!showMobileFilters)}
@@ -148,14 +174,18 @@ export default function HikvisionProductsPage() {
           Filters
         </button>
 
-        {/* Mobile Sort */}
         <div className="relative">
           <button
             onClick={() => setShowSortDropdown(!showSortDropdown)}
             className="flex items-center text-gray-700 px-4 py-2 border border-gray-300 rounded-lg"
           >
             <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"
+              />
             </svg>
             Sort
           </button>
@@ -171,13 +201,10 @@ export default function HikvisionProductsPage() {
                   { id: 'oldest', name: 'Oldest First' },
                   { id: 'a-z', name: 'A to Z' },
                   { id: 'z-a', name: 'Z to A' },
-                ].map(option => (
+                ].map((option) => (
                   <button
                     key={option.id}
-                    onClick={() => {
-                      setSortOption(option.id);
-                      setShowSortDropdown(false);
-                    }}
+                    onClick={() => handleSortOptionChange(option.id)}
                     className={`block w-full text-left px-4 py-2 text-sm ${
                       sortOption === option.id ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
                     } hover:bg-gray-100`}
@@ -192,7 +219,6 @@ export default function HikvisionProductsPage() {
       </div>
 
       <div className="flex flex-col md:flex-row">
-        {/* Sidebar Filters - Mobile Friendly */}
         <div className={`md:w-64 flex-shrink-0 md:block ${showMobileFilters ? 'block' : 'hidden'}`}>
           <div className="sticky top-24 overflow-y-auto">
             <div className="bg-white rounded-lg shadow-md p-5 mb-6">
@@ -202,16 +228,25 @@ export default function HikvisionProductsPage() {
                   type="text"
                   placeholder="Search products..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={handleSearchChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 />
-                <svg className="w-5 h-5 absolute right-3 top-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <svg
+                  className="w-5 h-5 absolute right-3 top-3 text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
               </div>
             </div>
 
-            {/* Category Filter */}
             <div className="bg-white rounded-lg shadow-md p-5 mb-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Product Category</h3>
               <div className="space-y-2">
@@ -222,7 +257,7 @@ export default function HikvisionProductsPage() {
                       type="radio"
                       name="category"
                       checked={activeCategory === category}
-                      onChange={() => setActiveCategory(category)}
+                      onChange={() => handleCategoryChange(category)}
                       className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                     />
                     <label htmlFor={`category-${category}`} className="ml-2 text-sm text-gray-700">
@@ -233,26 +268,23 @@ export default function HikvisionProductsPage() {
               </div>
             </div>
 
-            {/* Website Category Filter */}
             <div className="bg-white rounded-lg shadow-md p-5">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Website Categories</h3>
               <div className="space-y-2">
-                {/* Add "All" option first */}
                 <div key="all-subcategory" className="flex items-center">
                   <input
                     id="website-category-All"
                     type="radio"
                     name="websiteCategory"
                     checked={activeWebsiteCategory === 'All'}
-                    onChange={() => setActiveWebsiteCategory('All')}
+                    onChange={() => handleWebsiteCategoryChange('All')}
                     className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                   />
                   <label htmlFor="website-category-All" className="ml-2 text-sm text-gray-700">
                     All
                   </label>
                 </div>
-                
-                {/* Map through actual subcategories from API */}
+
                 {subcategories.map((subcategory) => (
                   <div key={subcategory._id} className="flex items-center">
                     <input
@@ -260,7 +292,7 @@ export default function HikvisionProductsPage() {
                       type="radio"
                       name="websiteCategory"
                       checked={activeWebsiteCategory === subcategory.name}
-                      onChange={() => setActiveWebsiteCategory(subcategory.name)}
+                      onChange={() => handleWebsiteCategoryChange(subcategory.name)}
                       className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                     />
                     <label htmlFor={`website-category-${subcategory._id}`} className="ml-2 text-sm text-gray-700">
@@ -268,8 +300,7 @@ export default function HikvisionProductsPage() {
                     </label>
                   </div>
                 ))}
-                
-                {/* Show message if no subcategories */}
+
                 {subcategories.length === 0 && (
                   <p className="text-sm text-gray-500 italic">No subcategories available</p>
                 )}
@@ -278,9 +309,7 @@ export default function HikvisionProductsPage() {
           </div>
         </div>
 
-        {/* Product Grid */}
         <div className="flex-1 md:ml-8">
-          {/* Desktop Sort */}
           <div className="hidden md:flex justify-end mb-6">
             <div className="relative inline-block">
               <button
@@ -304,13 +333,10 @@ export default function HikvisionProductsPage() {
                       { id: 'oldest', name: 'Oldest First' },
                       { id: 'a-z', name: 'A to Z' },
                       { id: 'z-a', name: 'Z to A' },
-                    ].map(option => (
+                    ].map((option) => (
                       <button
                         key={option.id}
-                        onClick={() => {
-                          setSortOption(option.id);
-                          setShowSortDropdown(false);
-                        }}
+                        onClick={() => handleSortOptionChange(option.id)}
                         className={`block w-full text-left px-4 py-2 text-sm ${
                           sortOption === option.id ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
                         } hover:bg-gray-100`}
@@ -324,34 +350,54 @@ export default function HikvisionProductsPage() {
             </div>
           </div>
 
-          {/* Loading State */}
           {loading && (
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
             </div>
           )}
 
-          {/* Error State */}
           {error && (
             <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm text-red-700">
-                    There was an error loading products. Please try again later.
-                  </p>
+                  <p className="text-sm text-red-700">{error}</p>
                 </div>
               </div>
             </div>
           )}
 
-         {/* Products Grid */}
+          {!loading && !error && filteredProducts.length === 0 && (
+            <div className="text-center py-16 bg-gray-50 rounded-lg">
+              <svg
+                className="mx-auto h-12 w-12 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <h3 className="mt-2 text-xl font-medium text-gray-900">No products found</h3>
+              <p className="mt-1 text-gray-500">Try changing your search or filter criteria.</p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map((product) => {
+            {filteredProducts.slice(0, visibleProductCount).map((product) => {
               const productId = product._id;
               const isAnimated = typeof productId === 'string' && animatedProducts.includes(productId);
 
@@ -364,11 +410,20 @@ export default function HikvisionProductsPage() {
                 >
                   <div className="relative h-48 w-full overflow-hidden">
                     {(product.imageUrl || (product.images && product.images.length > 0)) ? (
-                      <Image 
-                        src={product.imageUrl || product.images![0]} 
-                        alt={product.name} 
-                        fill 
-                        className="object-cover" 
+                      <Image
+                        src={product.imageUrl || product.images![0]}
+                        alt={product.name}
+                        fill
+                        loading="lazy"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="object-cover"
+                        placeholder="blur"
+                        blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDAgMjAwIj48cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZWVlZSI+PC9yZWN0Pjwvc3ZnPg=="
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.onerror = null;
+                          target.src = '/placeholder-image.jpg';
+                        }}
                       />
                     ) : (
                       <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
@@ -402,18 +457,17 @@ export default function HikvisionProductsPage() {
                           {product.websiteCategory}
                         </span>
                       )}
-                      {/* If product has subcategoryId but no websiteCategory name, show the name from subcategories */}
                       {!product.websiteCategory && product.subcategoryId && (
                         <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                          {subcategories.find(sub => sub._id === product.subcategoryId)?.name || 'Unknown Category'}
+                          {subcategories.find((sub) => sub._id === product.subcategoryId)?.name || 'Unknown Category'}
                         </span>
                       )}
                     </div>
-                    
-                    {/* Rest of the product card content remains the same */}
+
                     <Link
-                      href={`/products/${productId}`}
+                      href={`/products/${product.slug || productId}`}
                       className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+                      prefetch={false}
                     >
                       Learn more
                       <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -425,7 +479,31 @@ export default function HikvisionProductsPage() {
               );
             })}
           </div>
+
+          {filteredProducts.length > visibleProductCount && (
+            <div className="mt-8 text-center">
+              <button
+                onClick={handleLoadMore}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+              >
+                Load More Products
+              </button>
+            </div>
+          )}
         </div>
+      </div>
+
+      <div className="mt-16 bg-gradient-to-r from-blue-500 to-blue-700 rounded-xl p-8 text-center text-white">
+        <h2 className="text-2xl md:text-3xl font-bold mb-4">Questions about Hikvision products?</h2>
+        <p className="text-lg mb-6 max-w-2xl mx-auto">
+          Our team can provide detailed information and help you choose the right Hikvision solutions.
+        </p>
+        <Link
+          href="/contact"
+          className="inline-block bg-white text-blue-600 font-medium px-6 py-3 rounded-lg hover:bg-blue-50 transition-colors duration-300"
+        >
+          Contact Us
+        </Link>
       </div>
     </div>
   );
