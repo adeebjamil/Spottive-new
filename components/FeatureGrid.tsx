@@ -118,9 +118,13 @@ export default function FeatureGrid() {
                       <Image 
                         src={item.image}
                         alt={item.title}
-                        fill
+                        width={500}
+                        height={300}
                         sizes="(max-width: 768px) 100vw, 50vw"
                         className="object-cover rounded-lg"
+                        loading="lazy" // Add for below-fold images
+                        placeholder="blur" // Add placeholder for better perceived performance
+                        blurDataURL="data:image/svg+xml;base64,..." // Generate a tiny placeholder
                       />
                     </div>
                   </div>

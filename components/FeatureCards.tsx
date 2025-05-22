@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Image from 'next/image';
 
 export default function FeatureCards() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -128,10 +129,14 @@ export default function FeatureCards() {
                   <div className={`${card.bgColor} rounded-3xl p-8 h-full relative overflow-hidden transition-all duration-300 hover:shadow-xl group`}>
                     <div className={`${card.imageBg} rounded-2xl p-4 mb-6 inline-block transition-transform duration-300 group-hover:scale-105`}>
                       <div className="h-56 w-full flex items-center justify-center overflow-hidden">
-                        <img 
-                          src={card.image} 
-                          alt={card.imageAlt} 
+                        <Image
+                          src={card.image}
+                          alt={card.imageAlt}
+                          width={400}
+                          height={300}
                           className="object-cover transition-transform duration-500 group-hover:scale-110"
+                          loading="lazy"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         />
                       </div>
                     </div>

@@ -5,8 +5,9 @@ import Footer from "../components/Footer";
 import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
-  title: "Spottive",
-  description: "Your modern web application",
+  title: "Spottive - Smart Technology Solutions",
+  description:
+    "Cutting-edge security and networking solutions for homes, businesses, and smart cities.",
 };
 
 export default function RootLayout({
@@ -16,6 +17,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Preload critical hero image to improve LCP */}
+        <link
+          rel="preload"
+          href="/hero1.png"
+          as="image"
+          type="image/png"
+          fetchPriority="high"
+        />
+      </head>
       <body className="antialiased" cz-shortcut-listen="true">
         <AuthProvider>
           <Navbar />

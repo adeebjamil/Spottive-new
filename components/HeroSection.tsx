@@ -128,14 +128,20 @@ export default function HeroSection() {
             }`}
           >
             <div className="relative">
-              {/* Smart City Illustration */}
+              {/* Smart City Illustration - OPTIMIZED */}
               <Image
                 src="/hero1.png"
                 alt="Smart City Solutions"
                 width={800}
                 height={600}
-                priority
+                fetchPriority="high" // Critical addition for LCP
+                priority={true}
                 className="w-full h-auto object-contain"
+                style={{
+                  aspectRatio: '800/600',
+                }}
+                placeholder="blur" // Add blur placeholder
+                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wgARCAAPABQDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAABQAE/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAH/2gAMAwEAAhADEAAAAVNyvCsf/8QAGhAAAgIDAAAAAAAAAAAAAAAAAQIDBBITIf/aAAgBAQABBQJWZTmYT2pOZSlyb//EABQRAQAAAAAAAAAAAAAAAAAAABD/2gAIAQMBAT8BP//EABQRAQAAAAAAAAAAAAAAAAAAABD/2gAIAQIBAT8BP//EABoQAAICAwAAAAAAAAAAAAAAAAACEBIhMVH/2gAIAQEABj8CrGHPlh6f/8QAGxAAAgMBAQEAAAAAAAAAAAAAAAERITFBYVH/2gAIAQEAAT8hFgXpZZssEtNifZo0QlL6P//aAAwDAQACAAMAAAAQzB//xAAWEQEBAQAAAAAAAAAAAAAAAAABABH/2gAIAQMBAT8QGI//xAAUEQEAAAAAAAAAAAAAAAAAAAAQ/9oACAECAQE/ED//xAAcEAEAAgIDAQAAAAAAAAAAAAABESEAMUFRYXH/2gAIAQEAAT8QE5JuYche2OoaLuIWih6znWbLMXsGku8iQFpPgx//2Q==" // Base64 placeholder
               />
               
               {/* CCTV Camera Image - Floating Effect */}

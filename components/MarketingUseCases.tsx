@@ -199,7 +199,7 @@ export default function MarketingUseCases() {
               {/* Right side: Preview */}
               <div className="md:col-span-3 bg-gray-50 rounded-xl overflow-hidden relative">
                 <div className="flex items-center justify-center h-full min-h-[400px]">
-                  {categories.map((category) => (
+                  {categories.map((category, index) => (
                     <div 
                       key={category.id}
                       className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 ${
@@ -213,7 +213,10 @@ export default function MarketingUseCases() {
                           width={500}
                           height={400}
                           className="rounded-lg shadow-md"
-                          priority
+                          loading={index === 0 ? "eager" : "lazy"} // Only load first image eagerly
+                          placeholder="blur" 
+                          blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/wAARCABAAFADASIAAhEBAxEB/8QAGQAAAwEBAQAAAAAAAAAAAAAAAAQFAgMG/8QAHRABAQADAQEBAQEAAAAAAAAAAAECAxExEiFRYf/aAAwDAQACEQMRAD8A/SAQAM5GOe0r2Y7a6DNm+BSbjzurVlR9taZGoAACxy9idv71VdmVtQrzfTphhcpxl38ejsYdt1F9eiWT0xllcbzTjYvLJO0+LayYyej9mXrIOOfJjZ/R68nPlXZJ+vCYySS/j0O7K2SxK0W7Vz8c+66xmg4AAAAAAADLOya2tORjncpqja82PSYpOjZI1FGefsvYn7d/pV0s+0K866duNm4l6LncyErT4zrnn6pZZFdXorO0zuxu9mlcsusi7HQAAAAAAAxy81UK1VE66k6uAADmvH49AAAAf//Z"
+                          sizes="(max-width: 768px) 100vw, 500px" // Responsive sizing
                         />
                         
                         {/* UI Elements overlay */}
