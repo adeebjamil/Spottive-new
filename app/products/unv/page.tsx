@@ -342,32 +342,52 @@ export default function UNVProductsPage() {
               return (
                 <div 
                   key={productId} 
-                  className={`bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 ${
+                  className={`group bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 ${
                     isAnimated ? 'scale-105' : ''
                   }`}
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <div className="relative h-48 w-full overflow-hidden">
+                  {/* Improved Image Container with aspect ratio */}
+                  <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
+                    {/* Status Badge */}
+                    <div className="absolute top-2 right-2 z-10">
+                      <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-md font-medium">
+                        Active
+                      </span>
+                    </div>
+                    
                     {product.imageUrl || (product.images && product.images[0]) ? (
-                      <Image
-                        src={product.imageUrl || product.images![0]}
-                        alt={product.name}
-                        fill
-                        loading={index < 6 ? "eager" : "lazy"}
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="object-cover transition-transform duration-500 hover:scale-105"
-                        placeholder="blur"
-                        blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDAgMjAwIj48cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZWVlZSI+PC9yZWN0Pjwvc3ZnPg=="
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.onerror = null;
-                          target.src = '/placeholder-image.jpg';
-                        }}
-                      />
+                      <div className="h-full w-full flex items-center justify-center bg-white">
+                        <Image
+                          src={product.imageUrl || product.images![0]}
+                          alt={product.name}
+                          fill
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          className="object-contain p-3 transition-transform duration-500 hover:scale-110"
+                          loading={index < 6 ? "eager" : "lazy"}
+                          placeholder="blur"
+                          blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDAgMjAwIj48cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YxZjFmMSI+PC9yZWN0Pjwvc3ZnPg=="
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.onerror = null;
+                            target.src = '/placeholder-image.jpg';
+                          }}
+                        />
+                      </div>
                     ) : (
-                      <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
-                        <svg className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      <div className="h-full w-full flex items-center justify-center">
+                        <svg 
+                          className="h-16 w-16 text-gray-300" 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={1} 
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
+                          />
                         </svg>
                       </div>
                     )}
@@ -379,6 +399,7 @@ export default function UNVProductsPage() {
                     {product.description && (
                       <p className="text-gray-700 text-sm mb-4 line-clamp-2">{product.description}</p>
                     )}
+                    
                     <Link 
                       href={`/product/${product.slug || productId}`}
                       className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
