@@ -5,82 +5,57 @@ import { useProducts } from '@/hooks/useProducts';
 import Image from 'next/image';
 import Link from 'next/link';
 
-// Add interface definition for IProduct
+// Simplified IProduct interface - removed category-related fields
 interface IProduct {
   _id: string;
   id?: string;
   name: string;
   description?: string;
-  category?: string;
-  websiteCategory?: string;
   createdAt?: string | Date;
   slug?: string;
   images?: string[];
   imageUrl?: string;
   price?: number;
+  status?: string;
 }
 
 export default function UniviewProductsPage() {
-  const { products, loading: productsLoading, error: productsError } = useProducts();
+  const { products, loading: productsLoading } = useProducts();
   const [pageProducts, setPageProducts] = useState<IProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [activeWebsiteCategory, setActiveWebsiteCategory] = useState('All');
   const [animatedProducts, setAnimatedProducts] = useState<string[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [sortOption, setSortOption] = useState('newest');
-  const [categories, setCategories] = useState<string[]>(['All']);
-  const [subcategories, setSubcategories] = useState<any[]>([]);
-  const [visibleProductCount, setVisibleProductCount] = useState(12); // Initial product load limit
+  const [visibleProductCount, setVisibleProductCount] = useState(12);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
   const productGridRef = useRef<HTMLDivElement>(null);
 
-  // Optimized data fetching with parallel requests
+  // Simplified data fetching - only fetch products
   const fetchPageProducts = useCallback(async () => {
     try {
       setLoading(true);
+      console.log("Starting to fetch Uniview page data...");
 
-      // Use Promise.all for parallel API calls
-      const [productsRes, categoriesRes, subcategoriesRes] = await Promise.all([
-        fetch('/api/pages/uniview/products'),
-        fetch('/api/pages/uniview/categories'),
-        fetch('/api/pages/uniview/subcategories')
-      ]);
+      // Only fetch products, removed category/subcategory API calls
+      const productsRes = await fetch('/api/pages/uniview/products');
 
       if (!productsRes.ok) {
-        throw new Error('Failed to fetch page products');
+        throw new Error(`Failed to fetch page products: ${productsRes.status} ${productsRes.statusText}`);
       }
 
       const productsData = await productsRes.json();
+      console.log(`Loaded ${productsData.length} Uniview products`);
+      
       setPageProducts(productsData);
-
-      // Process categories if available
-      if (categoriesRes.ok) {
-        const categoriesData = await categoriesRes.json();
-        setCategories(['All', ...categoriesData.map((cat: any) => cat.name)]);
-      }
-
-      // Process subcategories if available
-      if (subcategoriesRes.ok) {
-        const subcategoriesData = await subcategoriesRes.json();
-        setSubcategories(subcategoriesData);
-      }
-
       setError(null);
     } catch (err) {
       console.error('Error fetching page products:', err);
-      setError('Failed to load products');
+      setError(`Failed to load products: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
-
-      // Set initial animated products with a slight delay for smooth loading
-      setTimeout(() => {
-        const ids = products?.slice(0, 12).map(p => p._id || p.id).filter((id): id is string => typeof id === 'string') || [];
-        setAnimatedProducts(ids);
-      }, 100);
     }
   }, []);
 
@@ -89,7 +64,7 @@ export default function UniviewProductsPage() {
     fetchPageProducts();
   }, [fetchPageProducts]);
 
-  // Optimized click outside handler
+  // Click outside handler
   const handleClickOutside = useCallback((event: MouseEvent) => {
     if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
       setShowSortDropdown(false);
@@ -102,31 +77,33 @@ export default function UniviewProductsPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [handleClickOutside]);
 
-  // Debounced search input handler for better performance
+  // Search input handler
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    // Clear any existing timeout
     const value = e.target.value;
     setSearchTerm(value);
-  }, []);
+    
+    // Reset visible count when searching
+    if (value !== searchTerm) {
+      setVisibleProductCount(12);
+    }
+  }, [searchTerm]);
 
-  // Reset filters handler
-  const handleResetFilters = useCallback(() => {
+  // Clear search
+  const handleClearSearch = useCallback(() => {
     setSearchTerm('');
-    setActiveCategory('All');
-    setActiveWebsiteCategory('All');
     setSortOption('newest');
+    setVisibleProductCount(12);
   }, []);
 
-  // Memoize filtered and sorted products for better performance
+  // Simplified filtering - only search and sort
   const filteredProducts = useMemo(() => {
-    // Filter products
+    // Filter products based only on search term
     const filtered = pageProducts.filter(product => {
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
-      const matchesWebsiteCategory = activeWebsiteCategory === 'All' || product.websiteCategory === activeWebsiteCategory;
-      return matchesSearch && matchesCategory && matchesWebsiteCategory;
+      return searchTerm === '' || 
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()));
     });
-
+    
     // Sort filtered products
     return [...filtered].sort((a, b) => {
       switch (sortOption) {
@@ -142,7 +119,7 @@ export default function UniviewProductsPage() {
           return 0;
       }
     });
-  }, [pageProducts, searchTerm, activeCategory, activeWebsiteCategory, sortOption]);
+  }, [pageProducts, searchTerm, sortOption]);
 
   // Load more products handler
   const handleLoadMore = useCallback(() => {
@@ -170,7 +147,6 @@ export default function UniviewProductsPage() {
       { threshold: 0.5 }
     );
 
-    // Observe the bottom of the product grid
     if (productGridRef.current) {
       observer.observe(productGridRef.current);
     }
@@ -184,7 +160,7 @@ export default function UniviewProductsPage() {
     [filteredProducts, visibleProductCount]
   );
 
-  // Memoize sort options to prevent unnecessary re-renders
+  // Memoize sort options
   const sortOptions = useMemo(() => [
     {id: 'newest', name: 'Newest First'},
     {id: 'oldest', name: 'Oldest First'},
@@ -213,7 +189,7 @@ export default function UniviewProductsPage() {
           <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
           </svg>
-          Filters
+          Search
         </button>
         
         {/* Mobile Sort */}
@@ -255,7 +231,7 @@ export default function UniviewProductsPage() {
       </div>
 
       <div className="flex flex-col md:flex-row">
-        {/* Sidebar Filters - Mobile Friendly */}
+        {/* Sidebar - Search Only */}
         <div className={`md:w-64 flex-shrink-0 md:block ${showMobileFilters ? 'block' : 'hidden'}`}>
           <div className="sticky top-24 overflow-y-auto">
             <div className="bg-white rounded-lg shadow-md p-5 mb-6">
@@ -268,77 +244,28 @@ export default function UniviewProductsPage() {
                   onChange={handleSearchChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 />
-                <svg className="w-5 h-5 absolute right-3 top-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <svg
+                  className="w-5 h-5 absolute right-3 top-3 text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
               </div>
             </div>
             
-            {/* Category Filter */}
-            <div className="bg-white rounded-lg shadow-md p-5 mb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Product Category</h3>
-              <div className="space-y-2">
-                {categories.map((category) => (
-                  <div key={category} className="flex items-center">
-                    <input
-                      id={`category-${category}`}
-                      type="radio"
-                      name="category"
-                      checked={activeCategory === category}
-                      onChange={() => setActiveCategory(category)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <label htmlFor={`category-${category}`} className="ml-2 text-sm text-gray-700">
-                      {category}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            {/* Website Category Filter */}
-            <div className="bg-white rounded-lg shadow-md p-5 mb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Website Categories</h3>
-              <div className="space-y-2">
-                {/* Add "All" option first */}
-                <div key="all-subcategory" className="flex items-center">
-                  <input
-                    id="website-category-All"
-                    type="radio"
-                    name="website-category"
-                    checked={activeWebsiteCategory === 'All'}
-                    onChange={() => setActiveWebsiteCategory('All')}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor="website-category-All" className="ml-2 text-sm text-gray-700">
-                    All
-                  </label>
-                </div>
-                
-                {subcategories.map((subcategory) => (
-                  <div key={subcategory._id} className="flex items-center">
-                    <input
-                      id={`website-category-${subcategory._id}`}
-                      type="radio"
-                      name="website-category"
-                      checked={activeWebsiteCategory === subcategory.name}
-                      onChange={() => setActiveWebsiteCategory(subcategory.name)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <label htmlFor={`website-category-${subcategory._id}`} className="ml-2 text-sm text-gray-700">
-                      {subcategory.name}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            {/* Reset Filters Button */}
+            {/* Clear Search Button */}
             <button
-              onClick={handleResetFilters}
+              onClick={handleClearSearch}
               className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-300"
             >
-              Reset Filters
+              Clear Search
             </button>
           </div>
         </div>
@@ -407,11 +334,11 @@ export default function UniviewProductsPage() {
           {!loading && !error && filteredProducts.length === 0 && (
             <div className="text-center py-16">
               <h3 className="text-xl font-medium text-gray-900 mb-2">No products found</h3>
-              <p className="text-gray-500">Try changing your search or filter</p>
+              <p className="text-gray-500">Try changing your search term</p>
             </div>
           )}
 
-          {/* Products Grid with Optimized Rendering */}
+          {/* Products Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" ref={productGridRef}>
             {visibleProducts.map((product, index) => {
               const productId = product.id || product._id;
@@ -420,60 +347,81 @@ export default function UniviewProductsPage() {
               return (
                 <div 
                   key={productId} 
-                  className={`bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 ${
+                  className={`group bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 ${
                     isAnimated ? 'scale-105' : ''
                   }`}
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <div className="relative h-48 w-full overflow-hidden">
+                  {/* Improved Image Container */}
+                  <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
+                    {/* Status Badge */}
+                    {product.status && (
+                      <div className="absolute top-2 right-2 z-10">
+                        <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded-md font-medium">
+                          {product.status}
+                        </span>
+                      </div>
+                    )}
+                    
                     {product.imageUrl || (product.images && product.images[0]) ? (
-                      <Image
-                        src={product.imageUrl || product.images![0]}
-                        alt={product.name}
-                        fill
-                        loading={index < 6 ? "eager" : "lazy"}
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="object-cover transition-transform duration-500 hover:scale-105"
-                        placeholder="blur"
-                        blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDAgMjAwIj48cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZWVlZSI+PC9yZWN0Pjwvc3ZnPg=="
-                        onError={(e) => {
-                          // Fallback if image fails to load
-                          const target = e.target as HTMLImageElement;
-                          target.onerror = null;
-                          target.src = '/placeholder-image.jpg'; // Use a placeholder
-                        }}
-                      />
+                      <div className="h-full w-full flex items-center justify-center bg-white">
+                        <Image
+                          src={product.imageUrl || product.images![0]}
+                          alt={product.name}
+                          fill
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          className="object-contain p-3 transition-transform duration-500 hover:scale-110"
+                          loading={index < 6 ? "eager" : "lazy"}
+                          placeholder="blur"
+                          blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDAgMjAwIj48cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YxZjFmMSI+PC9yZWN0Pjwvc3ZnPg=="
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.onerror = null;
+                            target.src = '/placeholder-image.jpg';
+                          }}
+                        />
+                      </div>
                     ) : (
-                      <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
-                        <svg className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      <div className="h-full w-full flex items-center justify-center">
+                        <svg 
+                          className="h-16 w-16 text-gray-300" 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={1} 
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
+                          />
                         </svg>
                       </div>
                     )}
                   </div>
 
+                  {/* Product Info */}
                   <div className="p-4">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">{product.name}</h3>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {product.category && (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                          {product.category}
-                        </span>
-                      )}
-                      {product.websiteCategory && (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                          {product.websiteCategory}
-                        </span>
-                      )}
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-lg font-medium text-gray-900">{product.name}</h3>
+                      <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Active</span>
+                    </div>
+                    
+                    {/* Categories - Simplified badges */}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                        Security Cameras
+                      </span>
                     </div>
                     
                     {product.description && (
-                      <p className="text-gray-700 text-sm mb-4 line-clamp-2">{product.description}</p>
+                      <p className="text-gray-600 text-sm mt-2 line-clamp-2">{product.description}</p>
                     )}
+                    
                     <Link 
                       href={`/product/${product.slug || productId}`}
-                      className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
-                      prefetch={false} // Don't prefetch all product pages
+                      className="inline-flex items-center mt-3 text-sm font-medium text-blue-600 hover:text-blue-800"
+                      prefetch={false}
                     >
                       Learn more
                       <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -486,7 +434,7 @@ export default function UniviewProductsPage() {
             })}
           </div>
           
-          {/* Load More Button - Only show if there are more products to load */}
+          {/* Load More Button */}
           {!loading && filteredProducts.length > visibleProductCount && (
             <div className="mt-8 text-center">
               <button 

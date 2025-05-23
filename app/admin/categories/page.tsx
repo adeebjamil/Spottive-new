@@ -17,20 +17,7 @@ interface Product {
   images?: string[];
 }
 
-interface PageCategory {
-  _id?: string;
-  name: string;
-  slug?: string;
-  products: string[];
-}
-
-interface PageSubcategory {
-  _id?: string;
-  name: string;
-  parentCategoryId: string;
-}
-
-export default function CategoriesPage() {
+export default function ProductsPage() {
   // Product pages
   const pages = [
     { id: 'dahua-saudi', name: 'Dahua Saudi' },
@@ -42,19 +29,9 @@ export default function CategoriesPage() {
   // States
   const { products, loading: productsLoading } = useProducts();
   const [selectedPage, setSelectedPage] = useState('');
-  const [pageCategories, setPageCategories] = useState<PageCategory[]>([]);
-  const [pageSubcategories, setPageSubcategories] = useState<PageSubcategory[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'subcategories'>('products');
-  const [lastSaved, setLastSaved] = useState<Date | null>(null); // Add state for tracking when products were last saved
-  
-  // Form states
-  const [categoryForm, setCategoryForm] = useState({ name: '' });
-  const [subcategoryForm, setSubcategoryForm] = useState({ 
-    name: '', 
-    parentCategoryId: '' 
-  });
+  const [lastSaved, setLastSaved] = useState<Date | null>(null); // Track when products were last saved
 
   // Load page data when a page is selected
   useEffect(() => {
@@ -66,21 +43,7 @@ export default function CategoriesPage() {
   const fetchPageData = async (pageId: string) => {
     setLoading(true);
     try {
-      // Fetch page categories
-      const categoriesResponse = await fetch(`/api/pages/${pageId}/categories`);
-      if (categoriesResponse.ok) {
-        const categoriesData = await categoriesResponse.json();
-        setPageCategories(categoriesData);
-      }
-      
-      // Fetch page subcategories
-      const subcategoriesResponse = await fetch(`/api/pages/${pageId}/subcategories`);
-      if (subcategoriesResponse.ok) {
-        const subcategoriesData = await subcategoriesResponse.json();
-        setPageSubcategories(subcategoriesData);
-      }
-      
-      // Fetch page products
+      // Fetch page products only
       const productsResponse = await fetch(`/api/pages/${pageId}/products`);
       if (productsResponse.ok) {
         const productsData = await productsResponse.json();
@@ -105,144 +68,12 @@ export default function CategoriesPage() {
     setSelectedProducts(newSelectedProducts);
   };
 
-  const handleCreateCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!categoryForm.name.trim()) {
-      toast.error('Category name is required');
-      return;
-    }
-    
-    if (!selectedPage) {
-      toast.error('Please select a page first');
-      return;
-    }
-    
-    try {
-      setLoading(true); // Add loading state while creating
-      const response = await fetch(`/api/pages/${selectedPage}/categories`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ name: categoryForm.name })
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create category');
-      }
-      
-      const newCategory = await response.json();
-      
-      // Refresh the categories data completely rather than just appending
-      fetchPageData(selectedPage);
-      
-      setCategoryForm({ name: '' });
-      toast.success('Category created successfully');
-    } catch (error) {
-      console.error('Error creating category:', error);
-      toast.error('Failed to create category');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateSubcategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!subcategoryForm.name.trim()) {
-      toast.error('Subcategory name is required');
-      return;
-    }
-    
-    if (!subcategoryForm.parentCategoryId) {
-      toast.error('Please select a parent category');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/pages/${selectedPage}/subcategories`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(subcategoryForm)
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create subcategory');
-      }
-      
-      // Refresh the subcategories data completely
-      fetchPageData(selectedPage);
-      
-      setSubcategoryForm({ name: '', parentCategoryId: '' });
-      toast.success('Subcategory created successfully');
-    } catch (error) {
-      console.error('Error creating subcategory:', error);
-      toast.error('Failed to create subcategory');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteCategory = async (categoryId: string) => {
-    if (!confirm('Are you sure you want to delete this category? This will also delete all subcategories.')) {
-      return;
-    }
-    
-    try {
-      const response = await fetch(`/api/pages/${selectedPage}/categories/${categoryId}`, {
-        method: 'DELETE'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete category');
-      }
-      
-      // Remove the category from state
-      setPageCategories(pageCategories.filter(cat => cat._id !== categoryId));
-      // Also remove any subcategories that belonged to this category
-      setPageSubcategories(pageSubcategories.filter(sub => sub.parentCategoryId !== categoryId));
-      toast.success('Category deleted successfully');
-    } catch (error) {
-      console.error('Error deleting category:', error);
-      toast.error('Failed to delete category');
-    }
-  };
-
-  const handleDeleteSubcategory = async (subcategoryId: string) => {
-    if (!confirm('Are you sure you want to delete this subcategory?')) {
-      return;
-    }
-    
-    try {
-      const response = await fetch(`/api/pages/${selectedPage}/subcategories/${subcategoryId}`, {
-        method: 'DELETE'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete subcategory');
-      }
-      
-      // Remove the subcategory from state
-      setPageSubcategories(pageSubcategories.filter(sub => sub._id !== subcategoryId));
-      toast.success('Subcategory deleted successfully');
-    } catch (error) {
-      console.error('Error deleting subcategory:', error);
-      toast.error('Failed to delete subcategory');
-    }
-  };
-
   return (
     <div className="bg-gray-50 min-h-full p-6 rounded-lg shadow-sm">
       <ToastContainer position="top-right" autoClose={3000} />
       
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Page Products & Categories</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Page Products</h1>
       </div>
       
       {/* Page Selection */}
@@ -298,42 +129,6 @@ export default function CategoriesPage() {
       
       {selectedPage ? (
         <>
-          {/* Tabs */}
-          <div className="mb-8 border-b border-gray-200">
-            <nav className="-mb-px flex space-x-6">
-              <button
-                onClick={() => setActiveTab('products')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'products'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Products
-              </button>
-              <button
-                onClick={() => setActiveTab('categories')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'categories'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Categories
-              </button>
-              <button
-                onClick={() => setActiveTab('subcategories')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'subcategories'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Subcategories
-              </button>
-            </nav>
-          </div>
-          
           {/* Loading State */}
           {loading && (
             <div className="flex justify-center items-center py-8">
@@ -341,8 +136,8 @@ export default function CategoriesPage() {
             </div>
           )}
           
-          {/* Products Tab */}
-          {!loading && activeTab === 'products' && (
+          {/* Products Management */}
+          {!loading && (
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h2 className="text-lg font-semibold mb-4">
                 Select Products for {pages.find(p => p.id === selectedPage)?.name}
@@ -432,7 +227,7 @@ export default function CategoriesPage() {
                     </div>
                   )}
                   
-                  {/* Enhanced Save Button */}
+                  {/* Save Button */}
                   <div className="flex flex-col md:flex-row justify-between items-center mt-6">
                     <div className="mb-4 md:mb-0 flex items-center">
                       <span className="text-sm text-gray-600 mr-2">
@@ -497,172 +292,6 @@ export default function CategoriesPage() {
               )}
             </div>
           )}
-          
-          {/* Categories Tab */}
-          {!loading && activeTab === 'categories' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Create Category Form */}
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <h2 className="text-lg font-semibold mb-4">Create New Category</h2>
-                <form onSubmit={handleCreateCategory}>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Category Name*
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={categoryForm.name}
-                      onChange={(e) => setCategoryForm({ name: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., Security Cameras"
-                      required
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
-                  >
-                    Create Category
-                  </button>
-                </form>
-              </div>
-              
-              {/* Categories List */}
-              <div className="md:col-span-2 bg-white p-6 rounded-lg shadow-md">
-                <h2 className="text-lg font-semibold mb-4">
-                  Categories for {pages.find(p => p.id === selectedPage)?.name}
-                </h2>
-                
-                {pageCategories.length > 0 ? (
-                  <div className="divide-y divide-gray-200">
-                    {pageCategories.map(category => (
-                      <div key={category._id} className="py-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="text-lg font-medium text-gray-900">{category.name}</h3>
-                            <div className="flex items-center mt-2 text-xs text-gray-500">
-                              <span className="mr-3">
-                                {pageSubcategories.filter(sub => sub.parentCategoryId === category._id).length} subcategories
-                              </span>
-                              <span>
-                                {category.products?.length || 0} products
-                              </span>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => handleDeleteCategory(category._id as string)}
-                            className="inline-flex items-center px-2.5 py-1.5 border border-red-300 text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-8 text-center">
-                    <p className="text-gray-500">No categories found. Create your first category.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {/* Subcategories Tab */}
-          {!loading && activeTab === 'subcategories' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Create Subcategory Form */}
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <h2 className="text-lg font-semibold mb-4">Create New Subcategory</h2>
-                <form onSubmit={handleCreateSubcategory}>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Parent Category*
-                    </label>
-                    <select
-                      name="parentCategoryId"
-                      value={subcategoryForm.parentCategoryId}
-                      onChange={(e) => setSubcategoryForm({...subcategoryForm, parentCategoryId: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    >
-                      <option value="">Select a category</option>
-                      {pageCategories.map(category => (
-                        <option key={category._id} value={category._id}>{category.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Subcategory Name*
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={subcategoryForm.name}
-                      onChange={(e) => setSubcategoryForm({...subcategoryForm, name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., Wireless Cameras"
-                      required
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
-                  >
-                    Create Subcategory
-                  </button>
-                </form>
-              </div>
-              
-              {/* Subcategories List */}
-              <div className="md:col-span-2 bg-white p-6 rounded-lg shadow-md">
-                <h2 className="text-lg font-semibold mb-4">All Subcategories</h2>
-                
-                {pageSubcategories.length > 0 ? (
-                  <div className="divide-y divide-gray-200">
-                    {pageCategories.map(category => (
-                      <div key={category._id} className="py-4">
-                        <h3 className="text-md font-medium text-gray-700">{category.name}</h3>
-                        {pageSubcategories.filter(sub => sub.parentCategoryId === category._id).length > 0 ? (
-                          <ul className="mt-2 space-y-2">
-                            {pageSubcategories
-                              .filter(sub => sub.parentCategoryId === category._id)
-                              .map(sub => (
-                                <li key={sub._id} className="pl-4 border-l-2 border-gray-200">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-600">{sub.name}</span>
-                                    <button
-                                      onClick={() => handleDeleteSubcategory(sub._id as string)}
-                                      className="text-red-600 hover:text-red-800 text-xs"
-                                    >
-                                      Delete
-                                    </button>
-                                  </div>
-                                </li>
-                              ))}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-gray-500 mt-1 italic">No subcategories</p>
-                        )}
-                      </div>
-                    ))}
-                    
-                    {pageCategories.length === 0 && (
-                      <div className="py-8 text-center">
-                        <p className="text-gray-500">No categories found. Create categories first.</p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="py-8 text-center">
-                    <p className="text-gray-500">No subcategories found.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </>
       ) : (
         <div className="bg-white p-12 rounded-lg shadow-md text-center">
@@ -671,7 +300,7 @@ export default function CategoriesPage() {
           </svg>
           <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Product Page</h3>
           <p className="text-gray-500 mb-6">
-            Please select a product page from the dropdown above to manage its products, categories, and subcategories.
+            Please select a product page from the dropdown above to manage its products.
           </p>
         </div>
       )}

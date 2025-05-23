@@ -317,25 +317,44 @@ export default function ProductsPage() {
                   }`}
                   style={{ animationDelay: `${typeof productId === 'string' ? Math.min(animatedProducts.indexOf(productId) * 50, 1000) : 0}ms` }}
                 >
-                  <div className="relative h-48 bg-gray-100">
-                    {product.imageUrl ? (
-                      <Image
-                        src={product.imageUrl}
-                        alt={product.name}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        loading="lazy"
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        placeholder="blur"
-                        blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDAgMjAwIj48cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZWVlZSI+PC9yZWN0Pjwvc3ZnPg=="
-                      />
+                  {/* Improved Image Container with aspect ratio */}
+                  <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
+                    {product.imageUrl || (product.images && product.images.length > 0) ? (
+                      <div className="h-full w-full flex items-center justify-center bg-white">
+                        <Image
+                          src={product.imageUrl || product.images![0]}
+                          alt={product.name}
+                          fill
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          className="object-contain p-3 transition-transform duration-500 group-hover:scale-110"
+                          loading="lazy"
+                          placeholder="blur"
+                          blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDAgMjAwIj48cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YxZjFmMSI+PC9yZWN0Pjwvc3ZnPg=="
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.onerror = null;
+                            target.src = '/placeholder-image.jpg';
+                          }}
+                        />
+                      </div>
                     ) : (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <svg className="h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      <div className="h-full w-full flex items-center justify-center">
+                        <svg 
+                          className="h-16 w-16 text-gray-300" 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={1} 
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
+                          />
                         </svg>
                       </div>
                     )}
+                    
                     <div className="absolute top-2 right-2">
                       {product.status === 'Featured' && (
                         <span className="bg-purple-500 text-white px-2 py-1 rounded text-xs font-medium">
@@ -349,6 +368,7 @@ export default function ProductsPage() {
                       )}
                     </div>
                   </div>
+                  
                   <div className="p-4">
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors duration-300">{product.name}</h3>

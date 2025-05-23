@@ -5,35 +5,27 @@ import { useProducts } from '@/hooks/useProducts';
 import Image from 'next/image';
 import Link from 'next/link';
 
-// Add interface definition for IProduct
+// Simplified IProduct interface - removed category fields
 interface IProduct {
   _id: string;
   name: string;
   description?: string;
-  category?: string;
-  websiteCategory?: string;
   createdAt?: string | Date;
   slug?: string;
   images?: string[];
   price?: number;
-  subcategoryId?: string;
-  websiteCategoryId?: string;
-  imageUrl?: string; // Added imageUrl property
+  imageUrl?: string;
 }
 
 export default function DahuaSaudiProductsPage() {
   const { products, loading, error } = useProducts();
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [activeWebsiteCategory, setActiveWebsiteCategory] = useState('All');
   const [animatedProducts, setAnimatedProducts] = useState<string[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [sortOption, setSortOption] = useState('newest');
   const sortDropdownRef = useRef<HTMLDivElement>(null);
   const [pageProducts, setPageProducts] = useState<IProduct[]>([]);
-  const [categories, setCategories] = useState<string[]>(['All']);
-  const [subcategories, setSubcategories] = useState<any[]>([]); // Change from string[] to any[]
   const [pageLoading, setLoading] = useState(false);
   const [pageError, setError] = useState<string | null>(null);
   const [visibleProductCount, setVisibleProductCount] = useState(20); // For pagination
@@ -50,34 +42,20 @@ export default function DahuaSaudiProductsPage() {
     setSearchTerm(e.target.value);
   }, []);
 
-  // Memoized category handler
-  const handleCategoryChange = useCallback((category: string) => {
-    setActiveCategory(category);
-  }, []);
-
-  // Memoized website category handler
-  const handleWebsiteCategoryChange = useCallback((category: string) => {
-    setActiveWebsiteCategory(category);
-  }, []);
-
   // Close sort dropdown when clicking outside
   useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [handleClickOutside]); // Use the memoized callback
 
-  // Optimized data fetching with parallel requests
+  // Simplified data fetch - only products
   useEffect(() => {
     async function fetchPageProducts() {
       try {
         setLoading(true);
 
-        // Use Promise.all for parallel requests
-        const [productsRes, categoriesRes, subcategoriesRes] = await Promise.all([
-          fetch('/api/pages/dahua-saudi/products'),
-          fetch('/api/pages/dahua-saudi/categories'),
-          fetch('/api/pages/dahua-saudi/subcategories')
-        ]);
+        // Only fetch products now
+        const productsRes = await fetch('/api/pages/dahua-saudi/products');
 
         if (!productsRes.ok) {
           throw new Error('Failed to fetch page products');
@@ -85,19 +63,6 @@ export default function DahuaSaudiProductsPage() {
 
         const data = await productsRes.json();
         setPageProducts(data);
-
-        // Extract categories for this page
-        if (categoriesRes.ok) {
-          const categoriesData = await categoriesRes.json();
-          setCategories(['All', ...categoriesData.map((cat: any) => cat.name)]);
-        }
-
-        // Extract subcategories for this page
-        if (subcategoriesRes.ok) {
-          const subcategoriesData = await subcategoriesRes.json();
-          setSubcategories(subcategoriesData);
-        }
-
         setError(null);
       } catch (err) {
         console.error('Error fetching page products:', err);
@@ -110,26 +75,15 @@ export default function DahuaSaudiProductsPage() {
     fetchPageProducts();
   }, []);
 
-  // Memoize filtered products to prevent recalculation on every render
+  // Simplified filtered products - only search and sort
   const filteredProducts = useMemo(() => {
-    // Filter products based on search, category, and website category
+    // Filter products based only on search
     let filtered = pageProducts.filter((product) => {
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
-      const matchesWebsiteCategory =
-        activeWebsiteCategory === 'All' ||
-        product.websiteCategory === activeWebsiteCategory ||
-        // Also match if subcategory ID matches
-        subcategories.some(
-          (sub) =>
-            activeWebsiteCategory === sub.name &&
-            (product.subcategoryId === sub._id || product.websiteCategoryId === sub._id)
-        );
-
-      return matchesSearch && matchesCategory && matchesWebsiteCategory;
+      return product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()));
     });
     
-    // Sort filtered products
+    // Sorting logic remains the same
     return [...filtered].sort((a, b) => {
       switch (sortOption) {
         case 'newest':
@@ -144,7 +98,7 @@ export default function DahuaSaudiProductsPage() {
           return 0;
       }
     });
-  }, [pageProducts, searchTerm, activeCategory, activeWebsiteCategory, sortOption, subcategories]);
+  }, [pageProducts, searchTerm, sortOption]);
 
   // Animation for products - optimize with useEffect dependency array
   useEffect(() => {
@@ -182,7 +136,7 @@ export default function DahuaSaudiProductsPage() {
           <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
           </svg>
-          Filters
+          Search
         </button>
 
         {/* Mobile Sort */}
@@ -231,7 +185,7 @@ export default function DahuaSaudiProductsPage() {
       </div>
 
       <div className="flex flex-col md:flex-row">
-        {/* Sidebar Filters - Mobile Friendly */}
+        {/* Sidebar - Search Only */}
         <div className={`md:w-64 flex-shrink-0 md:block ${showMobileFilters ? 'block' : 'hidden'}`}>
           <div className="sticky top-24 overflow-y-auto">
             <div className="bg-white rounded-lg shadow-md p-5 mb-6">
@@ -259,71 +213,14 @@ export default function DahuaSaudiProductsPage() {
                 </svg>
               </div>
             </div>
-
-            {/* Category Filter */}
-            <div className="bg-white rounded-lg shadow-md p-5 mb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Product Category</h3>
-              <div className="space-y-2">
-                {categories.map((category) => (
-                  <div key={category} className="flex items-center">
-                    <input
-                      id={`category-${category}`}
-                      type="radio"
-                      name="category"
-                      checked={activeCategory === category}
-                      onChange={() => handleCategoryChange(category)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <label htmlFor={`category-${category}`} className="ml-2 text-sm text-gray-700">
-                      {category}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Website Category Filter */}
-            <div className="bg-white rounded-lg shadow-md p-5 mb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Website Categories</h3>
-              <div className="space-y-2">
-                {/* Add "All" option first */}
-                <div key="all-subcategory" className="flex items-center">
-                  <input
-                    id="website-category-All"
-                    type="radio"
-                    name="website-category"
-                    checked={activeWebsiteCategory === 'All'}
-                    onChange={() => handleWebsiteCategoryChange('All')}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor="website-category-All" className="ml-2 text-sm text-gray-700">
-                    All
-                  </label>
-                </div>
-                
-                {/* Map through actual subcategories from API */}
-                {subcategories.map((subcategory) => (
-                  <div key={subcategory._id} className="flex items-center">
-                    <input
-                      id={`website-category-${subcategory._id}`}
-                      type="radio"
-                      name="website-category"
-                      checked={activeWebsiteCategory === subcategory.name}
-                      onChange={() => handleWebsiteCategoryChange(subcategory.name)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <label htmlFor={`website-category-${subcategory._id}`} className="ml-2 text-sm text-gray-700">
-                      {subcategory.name}
-                    </label>
-                  </div>
-                ))}
-                
-                {/* Show message if no subcategories */}
-                {subcategories.length === 0 && (
-                  <p className="text-sm text-gray-500 italic">No subcategories available</p>
-                )}
-              </div>
-            </div>
+            
+            {/* Reset button */}
+            <button
+              onClick={() => setSearchTerm('')}
+              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-300"
+            >
+              Clear Search
+            </button>
           </div>
         </div>
 
@@ -396,7 +293,7 @@ export default function DahuaSaudiProductsPage() {
           {!pageLoading && !pageError && filteredProducts.length === 0 && (
             <div className="text-center py-16">
               <h3 className="text-xl font-medium text-gray-900 mb-2">No products found</h3>
-              <p className="text-gray-500">Try changing your search or filter</p>
+              <p className="text-gray-500">Try changing your search term</p>
             </div>
           )}
 
@@ -409,67 +306,67 @@ export default function DahuaSaudiProductsPage() {
               return (
                 <div
                   key={productId}
-                  className={`bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 ${
+                  className={`group bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 ${
                     isAnimated ? 'scale-105' : ''
                   }`}
                 >
-                  <div className="relative h-48 w-full overflow-hidden">
+                  {/* Improved Image Container with aspect ratio */}
+                  <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
                     {(product.imageUrl || (product.images && product.images.length > 0)) ? (
-                      <Image 
-                        src={product.imageUrl || product.images![0]} 
-                        alt={product.name} 
-                        fill 
-                        loading="lazy"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="object-cover"
-                        placeholder="blur"
-                        blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDAgMjAwIj48cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZWVlZSI+PC9yZWN0Pjwvc3ZnPg=="
-                      />
+                      <div className="h-full w-full flex items-center justify-center bg-white">
+                        <Image
+                          src={product.imageUrl || product.images![0]}
+                          alt={product.name}
+                          fill
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          className="object-contain p-3 transition-transform duration-500 hover:scale-110"
+                          loading="lazy"
+                          placeholder="blur"
+                          blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDAgMjAwIj48cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YxZjFmMSI+PC9yZWN0Pjwvc3ZnPg=="
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.onerror = null;
+                            target.src = '/placeholder-image.jpg';
+                          }}
+                        />
+                      </div>
                     ) : (
-                      <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
-                        <svg
-                          className="h-12 w-12 text-gray-400"
-                          fill="none"
-                          viewBox="0 0 24 24"
+                      <div className="h-full w-full flex items-center justify-center">
+                        <svg 
+                          className="h-16 w-16 text-gray-300" 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
                           stroke="currentColor"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={1} 
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
                           />
                         </svg>
                       </div>
                     )}
+                    
+                    {/* Status Badge */}
+                    <div className="absolute top-2 right-2">
+                      <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-md font-medium">
+                        Active
+                      </span>
+                    </div>
                   </div>
 
                   <div className="p-4">
                     <h3 className="text-lg font-medium text-gray-900 mb-2">{product.name}</h3>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {product.category && (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                          {product.category}
-                        </span>
-                      )}
-                      {product.websiteCategory && (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                          {product.websiteCategory}
-                        </span>
-                      )}
-                      {/* If product has subcategoryId but no websiteCategory name, show the name from subcategories */}
-                      {!product.websiteCategory && product.subcategoryId && (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                          {subcategories.find(sub => sub._id === product.subcategoryId)?.name || 'Unknown Category'}
-                        </span>
-                      )}
-                    </div>
                     
-                    {/* Rest of the product card content remains the same */}
+                    {product.description && (
+                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">{product.description}</p>
+                    )}
+                    
                     <Link
-                      href={`/products/${productId}`}
+                      href={`/products/${product.slug || productId}`}
                       className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
-                      prefetch={false} // Avoid prefetching all product pages
+                      prefetch={false}
                     >
                       Learn more
                       <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

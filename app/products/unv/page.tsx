@@ -1,18 +1,15 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useProducts } from '@/hooks/useProducts';
 import Image from 'next/image';
 import Link from 'next/link';
 
-// Add interface definition for IProduct
+// Simplified IProduct interface
 interface IProduct {
   _id: string;
   id?: string;
   name: string;
   description?: string;
-  category?: string;
-  websiteCategory?: string;
   createdAt?: string | Date;
   slug?: string;
   images?: string[];
@@ -21,35 +18,26 @@ interface IProduct {
 }
 
 export default function UNVProductsPage() {
-  const { products, loading: productsLoading, error: productsError } = useProducts();
   const [pageProducts, setPageProducts] = useState<IProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [activeWebsiteCategory, setActiveWebsiteCategory] = useState('All');
   const [animatedProducts, setAnimatedProducts] = useState<string[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [sortOption, setSortOption] = useState('newest');
-  const [categories, setCategories] = useState<string[]>(['All']);
-  const [subcategories, setSubcategories] = useState<any[]>([]);
-  const [visibleProductCount, setVisibleProductCount] = useState(12); // Initial load count
+  const [visibleProductCount, setVisibleProductCount] = useState(12);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
   const productGridRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   
-  // Optimized data fetching with parallel requests
+  // Simplified data fetching - only products
   const fetchPageProducts = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Parallel API calls for better performance
-      const [productsRes, categoriesRes, subcategoriesRes] = await Promise.all([
-        fetch('/api/pages/unv/products'),
-        fetch('/api/pages/unv/categories'),
-        fetch('/api/pages/unv/subcategories')
-      ]);
+      // Only fetch products
+      const productsRes = await fetch('/api/pages/unv/products');
       
       if (!productsRes.ok) {
         throw new Error('Failed to fetch page products');
@@ -57,19 +45,6 @@ export default function UNVProductsPage() {
       
       const data = await productsRes.json();
       setPageProducts(data);
-      
-      // Process categories if available
-      if (categoriesRes.ok) {
-        const categoriesData = await categoriesRes.json();
-        setCategories(['All', ...categoriesData.map((cat: any) => cat.name)]);
-      }
-      
-      // Process subcategories if available
-      if (subcategoriesRes.ok) {
-        const subcategoriesData = await subcategoriesRes.json();
-        setSubcategories(subcategoriesData);
-      }
-      
       setError(null);
       
       // Animate initial products
@@ -90,20 +65,19 @@ export default function UNVProductsPage() {
     fetchPageProducts();
   }, [fetchPageProducts]);
   
-  // Optimized click outside handler
+  // Click outside handler
   const handleClickOutside = useCallback((event: MouseEvent) => {
     if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
       setShowSortDropdown(false);
     }
   }, []);
   
-  // Close sort dropdown when clicking outside
   useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [handleClickOutside]);
   
-  // Optimized search handler with debounce
+  // Search handler
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
@@ -114,25 +88,18 @@ export default function UNVProductsPage() {
     }
   }, [searchTerm]);
   
-  // Reset filters handler
-  const handleResetFilters = useCallback(() => {
+  // Clear search
+  const handleClearSearch = useCallback(() => {
     setSearchTerm('');
-    setActiveCategory('All');
-    setActiveWebsiteCategory('All');
     setSortOption('newest');
     setVisibleProductCount(12);
-    
-    // Focus back on search after reset
-    if (searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
   }, []);
   
-  // Load more products handler
+  // Load more handler
   const handleLoadMore = useCallback(() => {
     setVisibleProductCount(prev => prev + 12);
     
-    // Animate newly visible products with a slight delay
+    // Animate newly visible products
     setTimeout(() => {
       const productIds = filteredProducts
         .slice(visibleProductCount, visibleProductCount + 12)
@@ -145,14 +112,13 @@ export default function UNVProductsPage() {
     }, 100);
   }, [visibleProductCount]);
   
-  // Memoize filtered products for better performance
+  // Simplified filtering - only search and sort
   const filteredProducts = useMemo(() => {
-    // Filter products based on criteria
+    // Filter products based only on search
     const filtered = pageProducts.filter(product => {
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
-      const matchesWebsiteCategory = activeWebsiteCategory === 'All' || product.websiteCategory === activeWebsiteCategory;
-      return matchesSearch && matchesCategory && matchesWebsiteCategory;
+      return searchTerm === '' || 
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()));
     });
     
     // Sort filtered products
@@ -170,9 +136,9 @@ export default function UNVProductsPage() {
           return 0;
       }
     });
-  }, [pageProducts, searchTerm, activeCategory, activeWebsiteCategory, sortOption]);
+  }, [pageProducts, searchTerm, sortOption]);
   
-  // Automatic load more when scrolling to bottom
+  // Scroll observer for lazy loading
   useEffect(() => {
     if (!loading) {
       const observer = new IntersectionObserver(
@@ -192,13 +158,13 @@ export default function UNVProductsPage() {
     }
   }, [filteredProducts.length, visibleProductCount, handleLoadMore, loading]);
   
-  // Memoize visible products to prevent unnecessary re-renders
+  // Visible products
   const visibleProducts = useMemo(() => 
     filteredProducts.slice(0, visibleProductCount),
     [filteredProducts, visibleProductCount]
   );
   
-  // Memoize sort options to prevent recreating the array on every render
+  // Sort options
   const sortOptions = useMemo(() => [
     {id: 'newest', name: 'Newest First'},
     {id: 'oldest', name: 'Oldest First'},
@@ -227,7 +193,7 @@ export default function UNVProductsPage() {
           <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
           </svg>
-          Filters
+          Search
         </button>
         
         {/* Mobile Sort */}
@@ -269,7 +235,7 @@ export default function UNVProductsPage() {
       </div>
 
       <div className="flex flex-col md:flex-row">
-        {/* Sidebar Filters - Mobile Friendly */}
+        {/* Sidebar - Search Only */}
         <div className={`md:w-64 flex-shrink-0 md:block ${showMobileFilters ? 'block' : 'hidden'}`}>
           <div className="sticky top-24 overflow-y-auto">
             <div className="bg-white rounded-lg shadow-md p-5 mb-6">
@@ -289,71 +255,12 @@ export default function UNVProductsPage() {
               </div>
             </div>
             
-            {/* Category Filter */}
-            <div className="bg-white rounded-lg shadow-md p-5 mb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Product Category</h3>
-              <div className="space-y-2">
-                {categories.map((category) => (
-                  <div key={category} className="flex items-center">
-                    <input
-                      id={`category-${category}`}
-                      type="radio"
-                      name="category"
-                      checked={activeCategory === category}
-                      onChange={() => setActiveCategory(category)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <label htmlFor={`category-${category}`} className="ml-2 text-sm text-gray-700">
-                      {category}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            {/* Website Category Filter */}
-            <div className="bg-white rounded-lg shadow-md p-5 mb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Website Categories</h3>
-              <div className="space-y-2">
-                {/* Add "All" option first */}
-                <div key="all-subcategory" className="flex items-center">
-                  <input
-                    id="website-category-All"
-                    type="radio"
-                    name="website-category"
-                    checked={activeWebsiteCategory === 'All'}
-                    onChange={() => setActiveWebsiteCategory('All')}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor="website-category-All" className="ml-2 text-sm text-gray-700">
-                    All
-                  </label>
-                </div>
-                
-                {subcategories.map((subcategory) => (
-                  <div key={subcategory._id} className="flex items-center">
-                    <input
-                      id={`website-category-${subcategory._id}`}
-                      type="radio"
-                      name="website-category"
-                      checked={activeWebsiteCategory === subcategory.name}
-                      onChange={() => setActiveWebsiteCategory(subcategory.name)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <label htmlFor={`website-category-${subcategory._id}`} className="ml-2 text-sm text-gray-700">
-                      {subcategory.name}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            {/* Reset Filters Button */}
+            {/* Clear Search Button */}
             <button
-              onClick={handleResetFilters}
+              onClick={handleClearSearch}
               className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-300"
             >
-              Reset Filters
+              Clear Search
             </button>
           </div>
         </div>
@@ -422,11 +329,11 @@ export default function UNVProductsPage() {
           {!loading && !error && filteredProducts.length === 0 && (
             <div className="text-center py-16">
               <h3 className="text-xl font-medium text-gray-900 mb-2">No products found</h3>
-              <p className="text-gray-500">Try changing your search or filter</p>
+              <p className="text-gray-500">Try changing your search term</p>
             </div>
           )}
 
-          {/* Products Grid with Progressive Loading */}
+          {/* Products Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" ref={productGridRef}>
             {visibleProducts.map((product, index) => {
               const productId = product.id || product._id;
@@ -452,10 +359,9 @@ export default function UNVProductsPage() {
                         placeholder="blur"
                         blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDAgMjAwIj48cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZWVlZSI+PC9yZWN0Pjwvc3ZnPg=="
                         onError={(e) => {
-                          // Fallback if image fails to load
                           const target = e.target as HTMLImageElement;
                           target.onerror = null;
-                          target.src = '/placeholder-image.jpg'; // Use a placeholder
+                          target.src = '/placeholder-image.jpg';
                         }}
                       />
                     ) : (
@@ -469,18 +375,6 @@ export default function UNVProductsPage() {
 
                   <div className="p-4">
                     <h3 className="text-lg font-medium text-gray-900 mb-2">{product.name}</h3>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {product.category && (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                          {product.category}
-                        </span>
-                      )}
-                      {product.websiteCategory && (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                          {product.websiteCategory}
-                        </span>
-                      )}
-                    </div>
                     
                     {product.description && (
                       <p className="text-gray-700 text-sm mb-4 line-clamp-2">{product.description}</p>
@@ -488,7 +382,7 @@ export default function UNVProductsPage() {
                     <Link 
                       href={`/product/${product.slug || productId}`}
                       className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
-                      prefetch={false} // Don't prefetch all product pages
+                      prefetch={false}
                     >
                       Learn more
                       <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -506,7 +400,7 @@ export default function UNVProductsPage() {
             )}
           </div>
           
-          {/* Load More Button - Only show if there are more products to load */}
+          {/* Load More Button */}
           {!loading && filteredProducts.length > visibleProductCount && (
             <div className="mt-8 text-center">
               <button 
