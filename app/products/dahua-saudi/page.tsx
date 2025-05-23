@@ -335,27 +335,22 @@ export default function DahuaSaudiProductsPage() {
               Showing <span className="font-medium text-gray-900">{filteredProducts.length}</span> products
             </div>
 
-            <div className="relative" ref={sortDropdownRef}>
+            <div className="relative inline-block">
               <button
                 onClick={() => setShowSortDropdown(!showSortDropdown)}
-                className="flex items-center text-gray-700 px-4 py-2 border border-gray-300 rounded-md"
+                className="flex items-center text-gray-700 px-4 py-2 border border-gray-300 rounded-lg"
               >
-                <span className="mr-2">
-                  {sortOption === 'newest'
-                    ? 'Newest First'
-                    : sortOption === 'oldest'
-                    ? 'Oldest First'
-                    : sortOption === 'a-z'
-                    ? 'A to Z'
-                    : 'Z to A'}
-                </span>
+                <span className="mr-2">Sort by</span>
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
 
               {showSortDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20">
+                <div
+                  ref={sortDropdownRef}
+                  className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-30"
+                >
                   <div className="py-1">
                     {[
                       { id: 'newest', name: 'Newest First' },
